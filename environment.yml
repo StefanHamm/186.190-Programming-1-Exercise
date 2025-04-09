@@ -1,0 +1,8 @@
+name: tran-optim
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - networkx
