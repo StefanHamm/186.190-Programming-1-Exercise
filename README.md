@@ -14,3 +14,9 @@ conda activate tran-optim
 ```bash
 winget install --id=StrawberryPerl.StrawberryPerl -e
 ```
+
+# install latex classes
+```bash
+tlmgr update --self
+tlmgr install standalone
+```
