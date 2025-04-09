@@ -20,3 +20,9 @@ winget install --id=StrawberryPerl.StrawberryPerl -e
 tlmgr update --self
 tlmgr install standalone
 ```
+
+# Building the docker image
+Should build it automatically when you run the visualization function.
+```bash
+docker build -t tran-optim .
+```
