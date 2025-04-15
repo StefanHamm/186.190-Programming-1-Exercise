@@ -4,6 +4,8 @@ from collections import deque
 from matplotlib import pyplot as plt
 
 from helper import loadTrack, displayTrack, run_visualization_in_docker, Track
+from src.helper import bresenham_line
+from src.visualizer import draw_narrowness_map
 from visualizer import draw_graph, draw_path_on_track
 import networkx as nx
 import numpy as np
@@ -11,12 +13,44 @@ import argparse
 
 from src.state import CarState
 
+def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
+    narrowness_map = np.full((track.rows, track.cols), np.nan)
+
+    for r in range(track.rows):
+        for c in range(track.cols):
+            if track.get_cell_type((r, c)) == 'O':
+                continue  # skip walls entirely
+
+            free = 0
+            for dr in range(-radius, radius + 1):
+                for dc in range(-radius, radius + 1):
+                    nr, nc = r + dr, c + dc
+                    if track.is_valid_coordinate((nr, nc)):
+                        cell = track.get_cell_type((nr, nc))
+                        if cell != 'O':  # count only non-wall neighbors
+                            free += 1
+
+            narrowness_map[r, c] = free
+
+    return narrowness_map
+
 def is_valid_transition(track: Track, from_state: CarState, to_state: CarState) -> bool:
     if not track.is_valid_coordinate(to_state.position()):
         return False
 
     if from_state.position() == to_state.position():
         return False
+
+    # Check for obstacles along the path
+    from_row, from_col = from_state.position()
+    to_row, to_col = to_state.position()
+    line_cells = bresenham_line(from_col, from_row, to_col, to_row)
+
+    for cell in line_cells:
+        if not track.is_valid_coordinate(cell):
+            return False
+        if track.get_cell_type(cell) == 'O':
+            return False
 
     cell_type = track.get_cell_type(to_state.position())
     if cell_type == 'O':
@@ -31,8 +65,6 @@ def precompute_goal_heuristic(track: Track) -> np.ndarray:
     heuristic_map = np.full((track.rows, track.cols), np.inf)
     goals = track.getGoalCoordinates()
     queue = deque()
-
-    grass_penalty = 2
 
     for r, c in goals:
         heuristic_map[r, c] = 0
@@ -50,18 +82,13 @@ def precompute_goal_heuristic(track: Track) -> np.ndarray:
             if cell_type == 'O':
                 continue
 
-            cost = 1
-            if cell_type == 'G':
-                cost += grass_penalty
-
-            # TODO: apply cost
             if heuristic_map[nr, nc] > heuristic_map[r, c] + 1:
                 heuristic_map[nr, nc] = heuristic_map[r, c] + 1
                 queue.append((nr, nc))
 
     return heuristic_map
 
-def build_graph(track: Track, start_state: CarState, max_depth: int = 10):
+def build_graph(track: Track, start_state: CarState, max_depth):
     g = nx.DiGraph()
     queue = deque([(start_state, 0)])
     visited = set()
@@ -85,7 +112,8 @@ def build_graph(track: Track, start_state: CarState, max_depth: int = 10):
                 if is_valid_transition(track, current, new_state):
                     g.add_edge(current, new_state, weight=1)
                     queue.append((new_state, depth + 1))
-    return g, visited_states
+
+    return g
 
 def heuristic(pos1, pos2):
     return np.linalg.norm(np.array(pos1) - np.array(pos2))
@@ -110,12 +138,16 @@ def find_best_local_goal(graph, goals, heuristic_map):
             best_node = node
     return best_node
 
-def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[int, int]], heuristic_map: np.ndarray, max_depth):
+def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[int, int]], heuristic_map: np.ndarray, narrowness_map, max_depth, visualize):
     current_state = start_state
     full_path = [current_state]
 
     while not reached_goal(current_state, goals):
-        graph, _ = build_graph(track, current_state, max_depth=max_depth)
+        graph = build_graph(track, current_state, max_depth=max_depth)
+
+        if visualize:
+            draw_graph(graph, track, title="Current Graph")
+            plt.show()
 
         if not graph or len(graph) == 0:
             print("No further graph could be built. Aborting.")
@@ -131,7 +163,7 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
                 graph,
                 current_state,
                 local_goal,
-                heuristic=lambda n, _: heuristic_map[n.row, n.col],
+                heuristic=lambda n, _: combined_heuristic(n, heuristic_map, narrowness_map),
                 weight='weight'
             )
         except nx.NetworkXNoPath:
@@ -144,6 +176,25 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
 
     return full_path
 
+def combined_heuristic(state: CarState, heuristic_map: np.ndarray, narrowness_map: np.ndarray, alpha=1.0, beta=1.2):
+    """
+    A* heuristic with:
+    - alpha: weight for distance to goal (precomputed)
+    - beta: penalty for narrow areas (inverted narrowness score)
+    """
+    row, col = state.row, state.col
+    h_dist = heuristic_map[row, col]
+
+    # Avoid division by 0 and walls
+    narrow_value = narrowness_map[row, col]
+    if np.isnan(narrow_value) or narrow_value == 0:
+        penalty = 10  # arbitrary high penalty for walls or unknowns
+    else:
+        penalty = 1 / narrow_value  # narrower = bigger penalty
+
+    # TODO: investigate penalty impact
+    return 1#alpha * h_dist + beta * penalty
+
 def save_path_as_csv(path, output_path, track):
     with open(output_path, 'w') as f:
         for state in path:
@@ -151,7 +202,7 @@ def save_path_as_csv(path, output_path, track):
             transformed_row = track.rows - 1 - state.row
             f.write(f"{state.col},{transformed_row}\n")
 
-def find_path(track_path, visualize, output, animation_speed=0.1):
+def find_path(track_path, visualize, output, depth):
     track = Track(loadTrack(track_path))
 
     start = track.getStartCoordinates()
@@ -175,11 +226,16 @@ def find_path(track_path, visualize, output, animation_speed=0.1):
         plt.title("Precomputed Heuristic Map")
         plt.show()
 
-    print("Running chunked A*...")
-    path = solve_chunked_astar(track, start_state, goals, heuristic_map, max_depth=1)
+    narrowness_map = compute_narrowness_map(track, radius=10)
 
     if visualize:
-        draw_path_on_track(track=track, path=path, title="Racetrack A* Result")
+        draw_narrowness_map(track, narrowness_map)
+
+    print("Running chunked A*...")
+    path = solve_chunked_astar(track, start_state, goals, heuristic_map, narrowness_map, depth, visualize=visualize)
+
+    if visualize:
+        draw_path_on_track(track=track, path=path, title="Racetrack A* Result", show_acceleration=True)
 
     if path:
         print(f"Path found with {len(path)} steps.")
@@ -210,17 +266,17 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--speed",
-        type=float,
-        default=0.1,
-        help="Animation speed in seconds between frames (default: 0.1)"
-    )
-
-    parser.add_argument(
         "--output", "-o",
         type=str,
         default="routes/output.csv",
         help="Path to save the output route file. (default: routes/output.csv)"
+    )
+
+    parser.add_argument(
+        "--depth", "-d",
+        type=int,
+        default=1,
+        help="Maximum depth for graph building. (default: 1)"
     )
 
     args = parser.parse_args()
@@ -229,5 +285,5 @@ if __name__ == "__main__":
         track_path=args.track,
         visualize=args.visualize,
         output=args.output,
-        animation_speed=args.speed
+        depth=args.depth
     )
