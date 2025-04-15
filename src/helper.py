@@ -427,6 +427,34 @@ def run_visualization_in_docker(
     else:
         # Directory not found, maybe it was already cleaned up inside container or never created due to earlier error
         print(f"Temporary directory '{temp_viz_host_path}' not found on host (already cleaned up or never created).")
+
+def bresenham_line(x0, y0, x1, y1):
+    """
+    Generates the grid cells that a line passes through from (x0, y0) to (x1, y1)
+    using Bresenham's line algorithm.
+    Returns a list of (row, col) tuples.
+    """
+    cells = []
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+
+    while True:
+        cells.append((y0, x0))  # row, col
+        if (x0, y0) == (x1, y1):
+            break
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x0 += sx
+        if e2 < dx:
+            err += dx
+            y0 += sy
+
+    return cells
+
 # --- Main execution block (runs on HOST) ---
 
 if __name__ == "__main__":
