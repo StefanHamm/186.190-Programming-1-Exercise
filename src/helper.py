@@ -135,15 +135,11 @@ def loadTrack(path: str) -> np.ndarray:
         matrixTrack = np.array(lines_data, dtype='U1')
         return matrixTrack
 
-    except FileNotFoundError:
-        print(f"Error: Track file not found at '{path}'")
-        # Return empty array instead of exiting
-        return np.array([[]], dtype='U1').reshape(0, 0)
-    except Exception as e:
-        print(f"Error loading track file '{path}': {e}")
-        # Return empty array instead of exiting
-        return np.array([[]], dtype='U1').reshape(0, 0)
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Track file not found at '{path}'") from e
 
+    except Exception as e:
+        raise Exception(f"Error loading track file '{path}': {e}") from e
 
 def displayTrack(track: np.ndarray):
     """
