@@ -1,5 +1,18 @@
 # 186.190-Programming-1-Exercise
 
+# Run the program
+```bash
+python src/construction.py [OPTIONS]
+```
+
+#### Options
+| Option            | Description                    | Default           |
+|-------------------|--------------------------------|-------------------|
+| -t or --track     | Path to the racetrack file     | tracks/track_02.t |
+| -o or --output    | Path to the output file        | routes/output.csv |
+| -v or --visualize | Enable graphical visualization | Disabled          |
+
+
 # Creating conda environment
 ```bash
 conda env create -f environment.yml
