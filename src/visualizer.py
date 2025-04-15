@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+from matplotlib.collections import LineCollection
 
 from src.helper import Track
 
@@ -59,19 +60,40 @@ def draw_graph(
     plt.axis("equal")
     plt.show()
 
-def draw_path_on_track(track, path, title="Path on Track"):
+def draw_path_on_track(track, path, title="Path on Track", show_acceleration=False):
     fig, ax = plt.subplots(figsize=(10, 10))
-
-    # --- Draw the track background using helper ---
     draw_track_background(ax, track)
 
-    # --- Draw path ---
     if path:
-        xs = [state.col for state in path]
-        ys = [state.row for state in path]
-        ax.plot(xs, ys, color='blue', linewidth=2, label='Path')
-        ax.scatter(xs[0], ys[0], color='green', s=100, label='Start')  # start
-        ax.scatter(xs[-1], ys[-1], color='red', s=100, label='End')
+        if show_acceleration:
+            segments = []
+            colors = []
+
+            for i in range(len(path) - 1):
+                start = path[i]
+                end = path[i + 1]
+                segments.append([(start.col, start.row), (end.col, end.row)])
+
+                from math import hypot
+                v_start = hypot(start.v_row, start.v_col)
+                v_end = hypot(end.v_row, end.v_col)
+
+                if v_end > v_start:
+                    colors.append('green')  # accelerating
+                elif v_end < v_start:
+                    colors.append('red')  # decelerating
+                else:
+                    colors.append('blue')  # constant speed
+
+            lc = LineCollection(segments, colors=colors, linewidths=2)
+            ax.add_collection(lc)
+        else:
+            xs = [s.col for s in path]
+            ys = [s.row for s in path]
+            ax.plot(xs, ys, color='blue', linewidth=2, label='Path')
+
+        ax.scatter(path[0].col, path[0].row, color='lime', s=100, label='Start')
+        ax.scatter(path[-1].col, path[-1].row, color='red', s=100, label='End')
 
         # Annotate each step with its index
         for i, state in enumerate(path):
@@ -102,3 +124,18 @@ def draw_track_background(ax, track):
             color_map[r, c] = cell_colors.get(cell, 1.0)
 
     ax.imshow(color_map, cmap='gray', origin='upper')
+
+def draw_narrowness_map(track: Track, narrowness_map: np.ndarray):
+    fig, ax = plt.subplots(figsize=(10, 10))
+    cmap = plt.cm.plasma
+
+    # Walls are shown in black
+    masked = np.ma.masked_where(track.track == 'O', narrowness_map)
+
+    ax.imshow(masked, cmap=cmap, origin='upper')
+    plt.colorbar(ax.imshow(masked, cmap=cmap), label="Local Width (Free Cells)")
+    ax.set_title("Narrowness Heatmap (lower = narrower)")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.tight_layout()
+    plt.show()
