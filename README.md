@@ -6,11 +6,12 @@ python src/construction.py [OPTIONS]
 ```
 
 #### Options
-| Option            | Description                    | Default           |
-|-------------------|--------------------------------|-------------------|
-| -t or --track     | Path to the racetrack file     | tracks/track_02.t |
-| -o or --output    | Path to the output file        | routes/output.csv |
-| -v or --visualize | Enable graphical visualization | Disabled          |
+| Option            | Description                      | Default           |
+|-------------------|----------------------------------|-------------------|
+| -t or --track     | Path to the racetrack file       | tracks/track_02.t |
+| -o or --output    | Path to the output file          | routes/output.csv |
+| -v or --visualize | Enable graphical visualization   | Disabled          |
+ | -d or --d         | Maximum depth for graph builidng | 1                 |
 
 
 # Creating conda environment
