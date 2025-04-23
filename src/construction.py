@@ -18,19 +18,21 @@ def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
 
     for r in range(track.rows):
         for c in range(track.cols):
-            if track.get_cell_type((r, c)) == 'O':
-                continue  # skip walls entirely
+            if not track.is_valid_coordinate((r, c)):
+                continue
 
             free = 0
+            total = 0
             for dr in range(-radius, radius + 1):
                 for dc in range(-radius, radius + 1):
                     nr, nc = r + dr, c + dc
                     if track.is_valid_coordinate((nr, nc)):
+                        total += 1
                         cell = track.get_cell_type((nr, nc))
                         if cell != 'O':  # count only non-wall neighbors
                             free += 1
-
-            narrowness_map[r, c] = free
+            if total > 0:
+                narrowness_map[r, c] = free / total * 100
 
     return narrowness_map
 
@@ -226,7 +228,7 @@ def find_path(track_path, visualize, output, depth):
         plt.title("Precomputed Heuristic Map")
         plt.show()
 
-    narrowness_map = compute_narrowness_map(track, radius=10)
+    narrowness_map = compute_narrowness_map(track, radius=5)
 
     if visualize:
         draw_narrowness_map(track, narrowness_map)
