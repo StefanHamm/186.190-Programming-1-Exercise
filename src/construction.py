@@ -110,7 +110,7 @@ def precompute_goal_heuristic(track: Track):
     return distance_map
 
 
-def build_graph(track: Track, start_state: CarState, max_depth, narrowness_map):
+def build_graph(track: Track, start_state: CarState, max_depth, narrowness_map, distance_map, alpha, beta, gamma):
     g = nx.DiGraph()
     queue = deque([(start_state, 0)])
     visited = set()
@@ -131,11 +131,25 @@ def build_graph(track: Track, start_state: CarState, max_depth, narrowness_map):
                 new_state = CarState(new_r, new_c, new_vr, new_vc)
 
                 if is_valid_transition(track, current, new_state):
-                    # compute dynamic edge weight
-                    acceleration = abs(ax) + abs(ay)
+                    d = distance_map[new_r][new_c]
+                    narrowness = narrowness_map[new_r][new_c]
+                    narrow_penalty = 1.0 - narrowness if np.isfinite(narrowness) else 1.0
                     speed = abs(new_vr) + abs(new_vc)
 
-                    weight = 1 + 0.2 * speed + 0.5 * acceleration + 1.0 * (1.0 - narrowness_map[new_state.position()])
+                    # Speed penalty calculation
+                    if narrowness >= 0.8:
+                        speed_penalty = -0.05 * gamma * speed
+                    elif narrowness >= 0.5:
+                        speed_penalty = 0.0
+                    else:
+                        penalty_factor = (1.0 - narrowness) ** 2
+                        speed_penalty = gamma * speed * penalty_factor
+
+                    weight = (
+                            alpha * d +
+                            beta * narrow_penalty +
+                            speed_penalty
+                    )
 
                     g.add_edge(current, new_state, weight=weight)
 
@@ -182,20 +196,32 @@ def find_best_local_goal(graph, current_state, distance_map, narrowness_map, alp
             if dist_to_current < best_goal_distance:
                 best_goal_distance = dist_to_current
                 best_goal_node = node
+            continue
+
+        speed = abs(node.v_row) + abs(node.v_col)
+        narrowness = narrowness_map[node.position()]
+        narrow_penalty = 1.0 - narrowness
+
+        if narrowness >= 0.8:
+            # Only very slight reward for speed in very wide open areas
+            speed_penalty = -0.05 * gamma * speed
+        elif narrowness >= 0.5:
+            # No reward or penalty in mid-width areas
+            speed_penalty = 0.0
         else:
-            speed = abs(node.v_row) + abs(node.v_col)
-            narrow_penalty = 1.0 - narrowness_map[node.position()]
-            dynamic_speed_penalty = speed * (1.0 + narrow_penalty * gamma)
+            # Penalize speed more steeply as narrowness decreases
+            penalty_factor = (1.0 - narrowness) ** 2  # quadratic penalty
+            speed_penalty = gamma * speed * penalty_factor
 
-            score = (
-                    alpha * d +
-                    beta * narrow_penalty +
-                    dynamic_speed_penalty
-            )
+        score = (
+                alpha * d +
+                beta * narrow_penalty +
+                speed_penalty
+        )
 
-            if score < best_score:
-                best_score = score
-                best_node = node
+        if score < best_score:
+            best_score = score
+            best_node = node
 
     return best_goal_node if best_goal_node is not None else best_node
 
@@ -205,8 +231,15 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
     current_state = start_state
     full_path = [current_state]
 
+    # distance
+    alpha = 0.5
+    # narrow
+    beta = 0.0
+    # speed
+    gamma = 0.5
+
     while not reached_goal(current_state, goals):
-        graph = build_graph(track, current_state, max_depth, narrowness_map)
+        graph = build_graph(track, current_state, max_depth, narrowness_map, distance_map, alpha, beta, gamma)
 
         if visualize:
             draw_graph(graph, track, title="Current Graph")
@@ -215,13 +248,6 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
         if not graph or len(graph) == 0:
             print("No further graph could be built. Aborting.")
             return full_path
-
-        # distance
-        alpha = 1.0
-        # narrow
-        beta = 0.3
-        # speed
-        gamma = 0.0
 
         local_goal = find_best_local_goal(graph, current_state, distance_map, narrowness_map, alpha, beta, gamma)
         if not local_goal:
