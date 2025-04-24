@@ -53,7 +53,7 @@ def bfs_racetrack(track: Track) -> list[CarState]:
                 # Check all cells on path are on-track (not walls)
                 if any(
                     not track.is_valid_coordinate((r, c)) or
-                    track.get_cell_type((r, c)) in ['O', 'G', None]
+                    track.get_cell_type((r, c)) in ['O', 'G', None] # TODO: allow grass
                     for r, c in cells_crossed
                 ):
                     continue
