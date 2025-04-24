@@ -125,16 +125,16 @@ def draw_track_background(ax, track):
 
     ax.imshow(color_map, cmap='gray', origin='upper')
 
-def draw_narrowness_map(track: Track, narrowness_map: np.ndarray):
+def draw_map(track: Track, map: np.ndarray, title: str, cmap_label: str):
     fig, ax = plt.subplots(figsize=(10, 10))
     cmap = plt.cm.plasma
 
     # Walls are shown in black
-    masked = np.ma.masked_where(track.track == 'O', narrowness_map)
+    masked = np.ma.masked_where(track.track == 'O', map)
 
     ax.imshow(masked, cmap=cmap, origin='upper')
-    plt.colorbar(ax.imshow(masked, cmap=cmap), label="Local Width (Free Cells)")
-    ax.set_title("Narrowness Heatmap (lower = narrower)")
+    plt.colorbar(ax.imshow(masked, cmap=cmap), label=cmap_label)
+    ax.set_title(title)
     ax.set_xticks([])
     ax.set_yticks([])
     plt.tight_layout()

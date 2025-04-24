@@ -4,8 +4,8 @@ from collections import deque
 from matplotlib import pyplot as plt
 
 from helper import loadTrack, displayTrack, run_visualization_in_docker, Track
-from src.helper import bresenham_line
-from src.visualizer import draw_narrowness_map
+from src.helper import bresenham_line, normalize_map
+from src.visualizer import draw_map
 from visualizer import draw_graph, draw_path_on_track
 import networkx as nx
 import numpy as np
@@ -14,6 +14,7 @@ import argparse
 from src.state import CarState
 
 visited_global = set()
+
 
 def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
     narrowness_map = np.full((track.rows, track.cols), np.nan)
@@ -35,19 +36,8 @@ def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
                             free += 1
             if total > 0:
                 narrowness_map[r, c] = free / total * 100
-    valid_mask = np.isfinite(narrowness_map)
 
-    if np.any(valid_mask):
-        min_val = np.min(narrowness_map[valid_mask])
-        max_val = np.max(narrowness_map[valid_mask])
-        range_val = max_val - min_val
-
-        if range_val > 0:
-            narrowness_map[valid_mask] = (narrowness_map[valid_mask] - min_val) / range_val
-        else:
-            narrowness_map[valid_mask] = 1.0
-
-    return narrowness_map
+    return normalize_map(narrowness_map)
 
 
 def is_valid_transition(track: Track, from_state: CarState, to_state: CarState) -> bool:
@@ -174,7 +164,7 @@ def reached_goal(state: CarState, goals: list[tuple[int, int]]) -> bool:
     return state.position() in goals
 
 
-def find_best_local_goal(graph, current_state, distance_map, narrowness_map, alpha, beta, gamma):
+def find_best_local_goal(track, graph, current_state, distance_map, narrowness_map, alpha, beta, gamma):
     best_node = None
     best_score = float('inf')
     best_goal_node = None
@@ -238,6 +228,8 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
     # speed
     gamma = 0.5
 
+    delta = 1.1
+
     while not reached_goal(current_state, goals):
         graph = build_graph(track, current_state, max_depth, narrowness_map, distance_map, alpha, beta, gamma)
 
@@ -249,7 +241,8 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
             print("No further graph could be built. Aborting.")
             return full_path
 
-        local_goal = find_best_local_goal(graph, current_state, distance_map, narrowness_map, alpha, beta, gamma)
+        local_goal = find_best_local_goal(track, graph, current_state, distance_map, narrowness_map, alpha,
+                                          beta, gamma)
         if not local_goal:
             print("No reachable local goal found.")
             return full_path
@@ -291,7 +284,7 @@ def combined_heuristic(
     # Speed penalty: discourage high speed in general or tune it with narrowness
     speed = abs(state.v_row) + abs(state.v_col)
 
-    beta_scaled = beta * dist # less narrowness penalty near to goal TODO: tune this
+    beta_scaled = beta * dist  # less narrowness penalty near to goal TODO: tune this
 
     return alpha * dist + beta_scaled * narrow_penalty + gamma * speed
 
@@ -331,7 +324,8 @@ def find_path(track_path, visualize, output, depth):
     narrowness_map = compute_narrowness_map(track, radius=5)
 
     if visualize:
-        draw_narrowness_map(track, narrowness_map)
+        draw_map(track, narrowness_map, title="Narrowness Heatmap (lower = narrower)",
+                 cmap_label="Local Width (Free Cells)")
 
     print("Running chunked A*...")
     path = solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, visualize)

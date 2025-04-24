@@ -455,6 +455,19 @@ def bresenham_line(x0, y0, x1, y1):
 
     return cells
 
+def normalize_map(data: np.ndarray) -> np.ndarray:
+    normed = np.copy(data)
+    finite_mask = np.isfinite(normed)
+    if np.any(finite_mask):
+        min_val = np.min(normed[finite_mask])
+        max_val = np.max(normed[finite_mask])
+        range_val = max_val - min_val
+        if range_val > 0:
+            normed[finite_mask] = (normed[finite_mask] - min_val) / range_val
+        else:
+            normed[finite_mask] = 1.0
+    return normed
+
 # --- Main execution block (runs on HOST) ---
 
 if __name__ == "__main__":
