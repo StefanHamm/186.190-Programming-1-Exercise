@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from matplotlib.collections import LineCollection
+import pygame
+import time
 
 from src.helper import Track
 
@@ -139,3 +141,78 @@ def draw_map(track: Track, map: np.ndarray, title: str, cmap_label: str):
     ax.set_yticks([])
     plt.tight_layout()
     plt.show()
+
+class Visualizer:
+    def __init__(self, track, width=800, height=800):
+        pygame.init()
+        self.track = track
+        self.screen_size = (width, height)
+        self.screen = pygame.display.set_mode(self.screen_size)
+        pygame.display.set_caption("Racetrack Visualization")
+        self.clock = pygame.time.Clock()
+        self.cell_width = width // track.cols
+        self.cell_height = height // track.rows
+
+    def draw(self, visited, open_heap, path):
+        self.screen.fill((255, 255, 255))  # White background
+
+        for r in range(self.track.rows):
+            for c in range(self.track.cols):
+                rect = pygame.Rect(
+                    c * self.cell_width,
+                    r * self.cell_height,
+                    self.cell_width,
+                    self.cell_height
+                )
+
+                cell_type = self.track.get_cell_type((r, c))
+                if cell_type == 'O':
+                    color = (0, 0, 0)  # Wall: Black
+                elif cell_type == 'G':
+                    color = (150, 150, 150)  # Grass: Gray
+                elif cell_type == 'S':
+                    color = (0, 255, 255)  # Start: Cyan
+                elif cell_type == 'F':
+                    color = (255, 215, 0)  # Goal: Gold
+                else:
+                    color = (220, 220, 220)  # Track: Light gray
+
+                pygame.draw.rect(self.screen, color, rect)
+
+        # Visited nodes (draw over)
+        for state in visited:
+            rect = pygame.Rect(
+                state.col * self.cell_width,
+                state.row * self.cell_height,
+                self.cell_width,
+                self.cell_height
+            )
+            pygame.draw.rect(self.screen, (100, 100, 255), rect)
+
+        # Open frontier
+        for _, _, _, state, _ in open_heap:
+            rect = pygame.Rect(
+                state.col * self.cell_width,
+                state.row * self.cell_height,
+                self.cell_width,
+                self.cell_height
+            )
+            pygame.draw.rect(self.screen, (0, 255, 0), rect)
+
+        # Final path
+        if path:
+            for state in path:
+                rect = pygame.Rect(
+                    state.col * self.cell_width,
+                    state.row * self.cell_height,
+                    self.cell_width,
+                    self.cell_height
+                )
+                pygame.draw.rect(self.screen, (255, 0, 0), rect)
+
+        pygame.display.flip()
+        self.clock.tick(240)
+
+    def quit(self):
+        time.sleep(2)
+        pygame.quit()
