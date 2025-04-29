@@ -1,5 +1,6 @@
 from collections import deque
 import heapq
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import count
 from matplotlib import pyplot as plt
 
@@ -9,7 +10,7 @@ from src.state import CarState
 import argparse
 import numpy as np
 from src.visualizer import Visualizer
-import concurrent.futures
+import tqdm
 
 
 def compute_maps(track: Track):
@@ -199,15 +200,15 @@ def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> b
     return False
 
 
-def tune_parameters(track, distance_map, narrowness_map, safe_speed_map):
+def tune_parameters(track, distance_map, narrowness_map, safe_speed_map, tune_steps=4, parallel=False):
     best_score = float('inf')
     best_params = None
 
     # Grid search spaces
-    alphas = np.linspace(0.5, 2.0, 4)
-    betas = np.linspace(0.5, 2.0, 4)
-    gammas = np.linspace(0.0, 1.0, 4)
-    deltas = np.linspace(0.0, 3.0, 4)
+    alphas = np.linspace(0.5, 2.0, tune_steps)
+    betas = np.linspace(0.5, 2.0, tune_steps)
+    gammas = np.linspace(0.0, 1.0, tune_steps)
+    deltas = np.linspace(0.0, 3.0, tune_steps)
 
     param_combinations = [(alpha, beta, gamma, delta)
                           for alpha in alphas
@@ -217,19 +218,25 @@ def tune_parameters(track, distance_map, narrowness_map, safe_speed_map):
 
     print(f"Total parameter combinations: {len(param_combinations)}")
 
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = [
-            executor.submit(
+    if parallel:
+        with ProcessPoolExecutor() as executor:
+            futures = [executor.submit(
                 try_parameters,
                 (params, track, distance_map, narrowness_map, safe_speed_map)
             )
-            for params in param_combinations
-        ]
+                for params in param_combinations
+            ]
 
-        results = concurrent.futures.as_completed(futures)
-
-        for future in results:
-            score, params = future.result()
+            for future in tqdm.tqdm(as_completed(futures), total=len(futures), desc="Tuning"):
+                score, params = future.result()
+                if score < best_score:
+                    best_score = score
+                    best_params = params
+    else:
+        for params in tqdm.tqdm(param_combinations, desc="Tuning"):
+            score, params = try_parameters(
+                (params, track, distance_map, narrowness_map, safe_speed_map)
+            )
             if score < best_score:
                 best_score = score
                 best_params = params
@@ -286,12 +293,12 @@ if __name__ == "__main__":
         visualizer = Visualizer(track)
 
     distance_map, narrowness_map, safe_speed_map = compute_maps(track)
-    #alpha, beta, gamma, delta = 1.0, 1.0, 0.3, 2.0
+    # alpha, beta, gamma, delta = 1.0, 1.0, 0.3, 2.0
     alpha, beta, gamma, delta = 0.5, 0.5, 0.0, 2.0
 
     if args.tune:
         print("Tuning parameters...")
-        best_params = tune_parameters(track, distance_map, narrowness_map, safe_speed_map)
+        best_params = tune_parameters(track, distance_map, narrowness_map, safe_speed_map, args.tune_steps, args.tune_parallel)
         if best_params:
             alpha, beta, gamma, delta = best_params
         else:
