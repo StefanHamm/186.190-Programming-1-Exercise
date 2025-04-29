@@ -1,12 +1,16 @@
 from collections import deque
 import heapq
 from itertools import count
+from matplotlib import pyplot as plt
 
 from src.construction import save_path_as_csv
 from src.helper import Track, loadTrack, bresenham_line, run_visualization_in_docker, normalize_map
 from src.state import CarState
 import argparse
 import numpy as np
+from src.visualizer import Visualizer
+import concurrent.futures
+
 
 def compute_maps(track: Track):
     rows, cols = track.rows, track.cols
@@ -57,17 +61,39 @@ def compute_maps(track: Track):
                 continue
             d = min(
                 np.hypot(r - nr, c - nc)
-                for nr in range(max(0, r-20), min(rows, r+20))
-                for nc in range(max(0, c-20), min(cols, c+20))
+                for nr in range(max(0, r - 20), min(rows, r + 20))
+                for nc in range(max(0, c - 20), min(cols, c + 20))
                 if track.is_valid_coordinate((nr, nc)) and track.get_cell_type((nr, nc)) == 'O'
-            ) if any(track.get_cell_type((nr, nc)) == 'O' for nr in range(max(0, r-20), min(rows, r+20)) for nc in range(max(0, c-20), min(cols, c+20))) else 0
+            ) if any(track.get_cell_type((nr, nc)) == 'O' for nr in range(max(0, r - 20), min(rows, r + 20)) for nc in
+                     range(max(0, c - 20), min(cols, c + 20))) else 0
 
             safe_speed_map[r, c] = np.sqrt(2 * d) if d > 0 else 0
-    safe_speed_map = normalize_map(safe_speed_map)
+
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 3, 1)
+    plt.imshow(distance_map, cmap='viridis', origin='upper')
+    plt.title("Distance to Goal")
+    plt.colorbar()
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(narrowness_map, cmap='coolwarm_r', origin='upper')
+    plt.title("Narrowness Map")
+    plt.colorbar()
+
+    plt.subplot(1, 3, 3)
+    plt.imshow(safe_speed_map, cmap='plasma', origin='upper')
+    plt.title("Safe Speed Map")
+    plt.colorbar()
+
+    plt.suptitle("Precomputed Maps")
+    plt.tight_layout()
+    plt.show()
 
     return distance_map, narrowness_map, safe_speed_map
 
-def combined_heuristic(state: CarState, distance_map, narrowness_map, safe_speed_map, alpha=1.0, beta=1.0, gamma=0.3, delta=1.0):
+
+def combined_heuristic(state: CarState, distance_map, narrowness_map, safe_speed_map, alpha, beta, gamma,
+                       delta):
     row, col = state.row, state.col
     if not (0 <= row < distance_map.shape[0] and 0 <= col < distance_map.shape[1]):
         return float('inf')
@@ -77,11 +103,20 @@ def combined_heuristic(state: CarState, distance_map, narrowness_map, safe_speed
     safe_speed = safe_speed_map[row, col]
     speed = np.hypot(state.v_row, state.v_col)
 
-    overspeed_penalty = (speed - safe_speed)**2 if speed > safe_speed else 0
+    overspeed_penalty = (speed - safe_speed) ** 2 if speed > safe_speed else 0
 
     return alpha * distance_score + beta * narrowness_score + gamma * speed + delta * overspeed_penalty
 
-def a_star_racetrack(track: Track) -> list[CarState]:
+
+def a_star_racetrack(track: Track,
+                     distance_map,
+                     narrowness_map,
+                     safe_speed_map,
+                     alpha,
+                     beta,
+                     gamma,
+                     delta,
+                     visualize=False) -> list[CarState]:
     start_pos = track.getStartCoordinates()
     if start_pos is None:
         print("No start found.")
@@ -90,22 +125,23 @@ def a_star_racetrack(track: Track) -> list[CarState]:
     goal_positions = set(track.getGoalCoordinates())
     start_state = CarState(*start_pos, 0, 0)
 
-    distance_map, narrowness_map, safe_speed_map = compute_maps(track)
-
     open_heap = []
     counter = count()
     heapq.heappush(open_heap, (0, next(counter), 0, start_state, []))
     visited = set()
 
-    alpha, beta, gamma, delta = 1.0, 1.0, 0.3, 2.0  # (tune later)
-
     while open_heap:
         f, _, g, current_state, path = heapq.heappop(open_heap)
+
         if current_state in visited:
             continue
+
         visited.add(current_state)
 
         new_path = path + [current_state]
+
+        if visualize:
+            visualizer.draw(visited, open_heap, new_path)
 
         if current_state.position() in goal_positions:
             return new_path
@@ -125,32 +161,145 @@ def a_star_racetrack(track: Track) -> list[CarState]:
                 if not track.is_valid_coordinate((new_row, new_col)):
                     continue
 
-                cells_crossed = bresenham_line(current_state.col, current_state.row, new_col, new_row)
-                if any(
-                    not track.is_valid_coordinate((r, c)) or
-                    track.get_cell_type((r, c)) in ['O', None, 'G']
-                    for r, c in cells_crossed
-                ):
+                if is_invalid_move(track, current_state, new_state):
                     continue
 
                 if new_state not in visited:
                     new_g = g + 1
-                    h = combined_heuristic(new_state, distance_map, narrowness_map, safe_speed_map, alpha, beta, gamma, delta)
+                    h = combined_heuristic(new_state, distance_map, narrowness_map, safe_speed_map, alpha, beta, gamma,
+                                           delta)
                     new_f = new_g + h
                     heapq.heappush(open_heap, (new_f, next(counter), new_g, new_state, new_path))
 
     print("No valid path found.")
     return []
 
+
+def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> bool:
+    """
+    Checks if the movement from 'from_state' to 'to_state' crosses an obstacle.
+    """
+
+    # Check start or end inside an obstacle
+    for check_state in [from_state, to_state]:
+        row, col = check_state.row, check_state.col
+        if not track.is_valid_coordinate((row, col)):
+            return True
+        if track.get_cell_type((row, col)) in ['O', 'G']:
+            return True
+
+    # Check line crossing
+    cells_crossed = bresenham_line(from_state.col, from_state.row, to_state.col, to_state.row)
+    for r, c in cells_crossed:
+        if not track.is_valid_coordinate((r, c)):
+            return True
+        if track.get_cell_type((r, c)) == 'O':
+            return True
+
+    return False
+
+
+def tune_parameters(track, distance_map, narrowness_map, safe_speed_map):
+    best_score = float('inf')
+    best_params = None
+
+    # Grid search spaces
+    alphas = np.linspace(0.5, 2.0, 4)
+    betas = np.linspace(0.5, 2.0, 4)
+    gammas = np.linspace(0.0, 1.0, 4)
+    deltas = np.linspace(0.0, 3.0, 4)
+
+    param_combinations = [(alpha, beta, gamma, delta)
+                          for alpha in alphas
+                          for beta in betas
+                          for gamma in gammas
+                          for delta in deltas]
+
+    print(f"Total parameter combinations: {len(param_combinations)}")
+
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = [
+            executor.submit(
+                try_parameters,
+                (params, track, distance_map, narrowness_map, safe_speed_map)
+            )
+            for params in param_combinations
+        ]
+
+        results = concurrent.futures.as_completed(futures)
+
+        for future in results:
+            score, params = future.result()
+            if score < best_score:
+                best_score = score
+                best_params = params
+
+    if best_params:
+        print(
+            f"Best parameters found: alpha={best_params[0]}, beta={best_params[1]}, gamma={best_params[2]}, delta={best_params[3]}")
+    else:
+        print("No valid parameters found.")
+
+    return best_params
+
+
+def try_parameters(args):
+    params, track, distance_map, narrowness_map, safe_speed_map = args
+    alpha, beta, gamma, delta = params
+    try:
+        path = a_star_racetrack(
+            track=track,
+            distance_map=distance_map,
+            narrowness_map=narrowness_map,
+            safe_speed_map=safe_speed_map,
+            alpha=alpha,
+            beta=beta,
+            gamma=gamma,
+            delta=delta,
+            visualize=False
+        )
+        if path:
+            return len(path), params
+        else:
+            return float('inf'), params
+    except Exception as e:
+        print(f"Exception for {params}: {e}")
+        return float('inf'), params
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run global A* with precomputed heuristics.")
     parser.add_argument("--track", "-t", type=str, default="tracks/track_02.t")
     parser.add_argument("--output", "-o", type=str, default="routes/output.csv")
+    parser.add_argument("--visualize", "-v", action="store_true", help="Visualize the pathfinding process.")
+    parser.add_argument("--tune", "-tune", action="store_true", help="Tune the pathfinding process.")
+    parser.add_argument("--tune-steps", type=int, default=4,
+                        help="Number of steps to sample per parameter axis for tuning. (default: 4)")
+    parser.add_argument("--tune-parallel", action="store_true", default=False,
+                        help="Use parallel processing during tuning.")
     args = parser.parse_args()
 
     print("\n--- Running Global Heuristic A* Racetrack ---")
     track = Track(loadTrack(args.track))
-    path_states = a_star_racetrack(track)
+
+    if args.visualize:
+        visualizer = Visualizer(track)
+
+    distance_map, narrowness_map, safe_speed_map = compute_maps(track)
+    #alpha, beta, gamma, delta = 1.0, 1.0, 0.3, 2.0
+    alpha, beta, gamma, delta = 0.5, 0.5, 0.0, 2.0
+
+    if args.tune:
+        print("Tuning parameters...")
+        best_params = tune_parameters(track, distance_map, narrowness_map, safe_speed_map)
+        if best_params:
+            alpha, beta, gamma, delta = best_params
+        else:
+            print("No valid parameters found.")
+            exit(1)
+
+    path_states = a_star_racetrack(track, distance_map, narrowness_map, safe_speed_map, alpha, beta, gamma, delta,
+                                   visualize=args.visualize)
 
     if path_states:
         print(f"Found path with {len(path_states)} steps.")
