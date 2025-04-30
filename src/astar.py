@@ -177,28 +177,55 @@ def a_star_racetrack(track: Track,
 
 
 def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> bool:
-    """
-    Checks if the movement from 'from_state' to 'to_state' crosses an obstacle.
-    """
+    min_row = min(from_state.row, to_state.row)
+    max_row = max(from_state.row, to_state.row)
+    min_col = min(from_state.col, to_state.col)
+    max_col = max(from_state.col, to_state.col)
 
-    # Check start or end inside an obstacle
-    for check_state in [from_state, to_state]:
-        row, col = check_state.row, check_state.col
-        if not track.is_valid_coordinate((row, col)):
-            return True
-        if track.get_cell_type((row, col)) in ['O', 'G']:
-            return True
-
-    # Check line crossing
-    cells_crossed = bresenham_line(from_state.col, from_state.row, to_state.col, to_state.row)
-    for r, c in cells_crossed:
-        if not track.is_valid_coordinate((r, c)):
-            return True
-        if track.get_cell_type((r, c)) == 'O':
-            return True
-
+    for r in range(min_row - 1, max_row + 2):
+        for c in range(min_col - 1, max_col + 2):
+            if not track.is_valid_coordinate((r, c)):
+                continue
+            if track.get_cell_type((r, c)) == 'O':
+                if liang_barsky_intersect(c - 0.5,
+                                          r - 0.5,
+                                          c + 0.5,
+                                          r + 0.5,
+                                          from_state.col,
+                                          from_state.row,
+                                          to_state.col,
+                                          to_state.row
+                                          ):
+                    return True
     return False
 
+
+def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
+    # based on https://www.geeksforgeeks.org/liang-barsky-algorithm/
+    dx = x2 - x1
+    dy = y2 - y1
+    p = [-dx, dx, -dy, dy]
+    q = [x1 - x_min, x_max - x1, y1 - y_min, y_max - y1]
+    t_enter = 0.0
+    t_exit = 1.0
+
+    for i in range(4):
+        if p[i] == 0:  # Check if line is parallel to the clipping boundary
+            if q[i] < 0:
+                return False  # Line is outside and parallel, so completely discarded
+        else:
+            t = q[i] / p[i]
+            if p[i] < 0:
+                if t > t_enter:
+                    t_enter = t
+            else:
+                if t < t_exit:
+                    t_exit = t
+
+    if t_enter > t_exit:
+        return False  # Line is completely outside
+
+    return True
 
 def tune_parameters(track, distance_map, narrowness_map, safe_speed_map, tune_steps=4, parallel=False):
     best_score = float('inf')
@@ -228,7 +255,7 @@ def tune_parameters(track, distance_map, narrowness_map, safe_speed_map, tune_st
             ]
 
             for future in tqdm.tqdm(as_completed(futures), total=len(futures), desc="Tuning"):
-                score, params = future.result()
+                score, params = future.result(timeout=10)
                 if score < best_score:
                     best_score = score
                     best_params = params
@@ -294,11 +321,15 @@ if __name__ == "__main__":
 
     distance_map, narrowness_map, safe_speed_map = compute_maps(track)
     # alpha, beta, gamma, delta = 1.0, 1.0, 0.3, 2.0
-    alpha, beta, gamma, delta = 0.5, 0.5, 0.0, 2.0
+    # track 02 a, b, g, d = 2.0 0.5 0.0 0.0
+    # track 03 a, b, g, d = 0.5 0.5 0.0 0.0
+    # track 04 a, b, g, d = 0.5 0.5 0.0 0.0
+    alpha, beta, gamma, delta = 0.5, 0.5, 0.0, 0.0
 
     if args.tune:
         print("Tuning parameters...")
-        best_params = tune_parameters(track, distance_map, narrowness_map, safe_speed_map, args.tune_steps, args.tune_parallel)
+        best_params = tune_parameters(track, distance_map, narrowness_map, safe_speed_map, args.tune_steps,
+                                      args.tune_parallel)
         if best_params:
             alpha, beta, gamma, delta = best_params
         else:
