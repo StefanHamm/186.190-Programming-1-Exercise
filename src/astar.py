@@ -197,8 +197,18 @@ def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> b
                                           to_state.row
                                           ):
                     return True
-    return False
 
+    if track.get_cell_type(from_state.position()) == 'G':
+        if abs(from_state.v_row) >= 2 and abs(to_state.v_row) - abs(from_state.v_row) >= 0:
+            return True
+        if abs(from_state.v_col) >= 2 and abs(to_state.v_col) - abs(from_state.v_col) >= 0:
+            return True
+        if abs(from_state.v_row) == 1 and abs(to_state.v_row) > abs(from_state.v_row):
+            return True
+        if abs(from_state.v_col) == 1 and abs(to_state.v_col) > abs(from_state.v_col):
+            return True
+
+    return False
 
 def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
     # based on https://www.geeksforgeeks.org/liang-barsky-algorithm/
