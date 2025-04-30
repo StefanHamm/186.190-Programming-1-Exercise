@@ -1,8 +1,8 @@
 from collections import deque
 
-from src.construction import save_path_as_csv
-from src.helper import Track, loadTrack, bresenham_line, run_visualization_in_docker
-from src.state import CarState
+from construction import save_path_as_csv
+from helper import Track, loadTrack, bresenham_line, run_visualization_in_docker, is_invalid_move
+from state import CarState
 import argparse
 
 
@@ -42,20 +42,7 @@ def bfs_racetrack(track: Track) -> list[CarState]:
                 new_col = current_state.col + new_vy
                 new_state = CarState(new_row, new_col, new_vx, new_vy)
 
-                # Ensure new position is within bounds
-                if not track.is_valid_coordinate((new_row, new_col)):
-                    continue
-
-                # Get cells the car would pass through (from old pos to new pos)
-                cells_crossed = bresenham_line(current_state.col, current_state.row,
-                                               new_col, new_row)
-
-                # Check all cells on path are on-track (not walls)
-                if any(
-                    not track.is_valid_coordinate((r, c)) or
-                    track.get_cell_type((r, c)) in ['O', 'G', None] # TODO: allow grass
-                    for r, c in cells_crossed
-                ):
+                if is_invalid_move(track, current_state, new_state):
                     continue
 
                 if new_state not in visited:

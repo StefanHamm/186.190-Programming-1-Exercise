@@ -6,6 +6,9 @@ import platform
 import shlex # For safer command string joining/splitting
 import shutil
 
+from src.state import CarState
+
+
 # --- Functions running on the HOST ---
 
 class Track:
@@ -467,6 +470,70 @@ def normalize_map(data: np.ndarray) -> np.ndarray:
         else:
             normed[finite_mask] = 1.0
     return normed
+
+def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> bool:
+    if not track.is_valid_coordinate((to_state.row, to_state.col)):
+        return True
+
+    min_row = min(from_state.row, to_state.row)
+    max_row = max(from_state.row, to_state.row)
+    min_col = min(from_state.col, to_state.col)
+    max_col = max(from_state.col, to_state.col)
+
+    for r in range(min_row - 1, max_row + 2):
+        for c in range(min_col - 1, max_col + 2):
+            if not track.is_valid_coordinate((r, c)):
+                continue
+            if track.get_cell_type((r, c)) == 'O':
+                if liang_barsky_intersect(c - 0.5,
+                                          r - 0.5,
+                                          c + 0.5,
+                                          r + 0.5,
+                                          from_state.col,
+                                          from_state.row,
+                                          to_state.col,
+                                          to_state.row
+                                          ):
+                    return True
+
+    if track.get_cell_type(from_state.position()) == 'G':
+        if abs(from_state.v_row) >= 2 and abs(to_state.v_row) - abs(from_state.v_row) >= 0:
+            return True
+        if abs(from_state.v_col) >= 2 and abs(to_state.v_col) - abs(from_state.v_col) >= 0:
+            return True
+        if abs(from_state.v_row) == 1 and abs(to_state.v_row) > abs(from_state.v_row):
+            return True
+        if abs(from_state.v_col) == 1 and abs(to_state.v_col) > abs(from_state.v_col):
+            return True
+
+    return False
+
+def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
+    # based on https://www.geeksforgeeks.org/liang-barsky-algorithm/
+    dx = x2 - x1
+    dy = y2 - y1
+    p = [-dx, dx, -dy, dy]
+    q = [x1 - x_min, x_max - x1, y1 - y_min, y_max - y1]
+    t_enter = 0.0
+    t_exit = 1.0
+
+    for i in range(4):
+        if p[i] == 0:  # Check if line is parallel to the clipping boundary
+            if q[i] < 0:
+                return False  # Line is outside and parallel, so completely discarded
+        else:
+            t = q[i] / p[i]
+            if p[i] < 0:
+                if t > t_enter:
+                    t_enter = t
+            else:
+                if t < t_exit:
+                    t_exit = t
+
+    if t_enter > t_exit:
+        return False  # Line is completely outside
+
+    return True
 
 # --- Main execution block (runs on HOST) ---
 

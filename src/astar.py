@@ -4,16 +4,16 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import count
 from matplotlib import pyplot as plt
 
-from src.construction import save_path_as_csv
-from src.helper import Track, loadTrack, bresenham_line, run_visualization_in_docker, normalize_map
-from src.state import CarState
+from construction import save_path_as_csv
+from helper import Track, loadTrack, bresenham_line, run_visualization_in_docker, normalize_map, is_invalid_move
+from state import CarState
 import argparse
 import numpy as np
-from src.visualizer import Visualizer
+from visualizer import Visualizer
 import tqdm
 
 
-def compute_maps(track: Track):
+def compute_maps(track: Track, visualize=False):
     rows, cols = track.rows, track.cols
 
     # 1. Distance to goal (simple BFS)
@@ -69,26 +69,26 @@ def compute_maps(track: Track):
                      range(max(0, c - 20), min(cols, c + 20))) else 0
 
             safe_speed_map[r, c] = np.sqrt(2 * d) if d > 0 else 0
+    if visualize:
+        plt.figure(figsize=(12, 4))
+        plt.subplot(1, 3, 1)
+        plt.imshow(distance_map, cmap='viridis', origin='upper')
+        plt.title("Distance to Goal")
+        plt.colorbar()
 
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 3, 1)
-    plt.imshow(distance_map, cmap='viridis', origin='upper')
-    plt.title("Distance to Goal")
-    plt.colorbar()
+        plt.subplot(1, 3, 2)
+        plt.imshow(narrowness_map, cmap='coolwarm_r', origin='upper')
+        plt.title("Narrowness Map")
+        plt.colorbar()
 
-    plt.subplot(1, 3, 2)
-    plt.imshow(narrowness_map, cmap='coolwarm_r', origin='upper')
-    plt.title("Narrowness Map")
-    plt.colorbar()
+        plt.subplot(1, 3, 3)
+        plt.imshow(safe_speed_map, cmap='plasma', origin='upper')
+        plt.title("Safe Speed Map")
+        plt.colorbar()
 
-    plt.subplot(1, 3, 3)
-    plt.imshow(safe_speed_map, cmap='plasma', origin='upper')
-    plt.title("Safe Speed Map")
-    plt.colorbar()
-
-    plt.suptitle("Precomputed Maps")
-    plt.tight_layout()
-    plt.show()
+        plt.suptitle("Precomputed Maps")
+        plt.tight_layout()
+        plt.show()
 
     return distance_map, narrowness_map, safe_speed_map
 
@@ -159,9 +159,6 @@ def a_star_racetrack(track: Track,
                 new_col = current_state.col + new_vy
                 new_state = CarState(new_row, new_col, new_vx, new_vy)
 
-                if not track.is_valid_coordinate((new_row, new_col)):
-                    continue
-
                 if is_invalid_move(track, current_state, new_state):
                     continue
 
@@ -174,68 +171,6 @@ def a_star_racetrack(track: Track,
 
     print("No valid path found.")
     return []
-
-
-def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> bool:
-    min_row = min(from_state.row, to_state.row)
-    max_row = max(from_state.row, to_state.row)
-    min_col = min(from_state.col, to_state.col)
-    max_col = max(from_state.col, to_state.col)
-
-    for r in range(min_row - 1, max_row + 2):
-        for c in range(min_col - 1, max_col + 2):
-            if not track.is_valid_coordinate((r, c)):
-                continue
-            if track.get_cell_type((r, c)) == 'O':
-                if liang_barsky_intersect(c - 0.5,
-                                          r - 0.5,
-                                          c + 0.5,
-                                          r + 0.5,
-                                          from_state.col,
-                                          from_state.row,
-                                          to_state.col,
-                                          to_state.row
-                                          ):
-                    return True
-
-    if track.get_cell_type(from_state.position()) == 'G':
-        if abs(from_state.v_row) >= 2 and abs(to_state.v_row) - abs(from_state.v_row) >= 0:
-            return True
-        if abs(from_state.v_col) >= 2 and abs(to_state.v_col) - abs(from_state.v_col) >= 0:
-            return True
-        if abs(from_state.v_row) == 1 and abs(to_state.v_row) > abs(from_state.v_row):
-            return True
-        if abs(from_state.v_col) == 1 and abs(to_state.v_col) > abs(from_state.v_col):
-            return True
-
-    return False
-
-def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
-    # based on https://www.geeksforgeeks.org/liang-barsky-algorithm/
-    dx = x2 - x1
-    dy = y2 - y1
-    p = [-dx, dx, -dy, dy]
-    q = [x1 - x_min, x_max - x1, y1 - y_min, y_max - y1]
-    t_enter = 0.0
-    t_exit = 1.0
-
-    for i in range(4):
-        if p[i] == 0:  # Check if line is parallel to the clipping boundary
-            if q[i] < 0:
-                return False  # Line is outside and parallel, so completely discarded
-        else:
-            t = q[i] / p[i]
-            if p[i] < 0:
-                if t > t_enter:
-                    t_enter = t
-            else:
-                if t < t_exit:
-                    t_exit = t
-
-    if t_enter > t_exit:
-        return False  # Line is completely outside
-
-    return True
 
 def tune_parameters(track, distance_map, narrowness_map, safe_speed_map, tune_steps=4, parallel=False):
     best_score = float('inf')
@@ -334,7 +269,7 @@ if __name__ == "__main__":
     # track 02 a, b, g, d = 2.0 0.5 0.0 0.0
     # track 03 a, b, g, d = 0.5 0.5 0.0 0.0
     # track 04 a, b, g, d = 0.5 0.5 0.0 0.0
-    alpha, beta, gamma, delta = 0.5, 0.5, 0.0, 0.0
+    alpha, beta, gamma, delta = 5.0, 1.0, 0.1, 1.0
 
     if args.tune:
         print("Tuning parameters...")
