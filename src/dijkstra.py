@@ -1,8 +1,8 @@
 import heapq
 from itertools import count
-from src.construction import save_path_as_csv
-from src.helper import Track, loadTrack, bresenham_line, run_visualization_in_docker
-from src.state import CarState
+from .construction import save_path_as_csv
+from .helper import Track, loadTrack, bresenham_line, run_visualization_in_docker
+from .state import CarState
 import argparse
 
 def dijkstra_racetrack(track: Track) -> list[CarState]:

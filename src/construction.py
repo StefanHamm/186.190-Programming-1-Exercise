@@ -3,15 +3,15 @@ from collections import deque
 
 from matplotlib import pyplot as plt
 
-from helper import loadTrack, displayTrack, run_visualization_in_docker, Track
-from src.helper import bresenham_line, normalize_map
-from src.visualizer import draw_map
-from visualizer import draw_graph, draw_path_on_track
+from .helper import loadTrack, displayTrack, run_visualization_in_docker, Track
+from .helper import bresenham_line, normalize_map
+from .visualizer import draw_map
+from .visualizer import draw_graph, draw_path_on_track
 import networkx as nx
 import numpy as np
 import argparse
 
-from src.state import CarState
+from .state import CarState
 
 visited_global = set()
 
@@ -215,20 +215,47 @@ def find_best_local_goal(track, graph, current_state, distance_map, narrowness_m
 
     return best_goal_node if best_goal_node is not None else best_node
 
+# add a enum for 
+# Aborting 
+# No further graph could be built. Aborting.
+# No reachable local goal found.
+# No path found in this chunk.
+# No valid path found.
+# No start point 'S' found on the track!q
+# No goal point(s) 'F' found on the track!
+from enum import Enum
+
+class PathFindingStatus(Enum):
+    SUCCESS = "Success"
+    ABORTING = "Aborting"
+    NO_GRAPH_BUILT = "No further graph could be built. Aborting."
+    NO_LOCAL_GOAL = "No reachable local goal found."
+    NO_PATH_FOUND = "No path found in this chunk."
+    NO_VALID_PATH = "No valid path found."
+    
+
+
 
 def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[int, int]], distance_map: np.ndarray,
-                        narrowness_map, max_depth, visualize):
+                        narrowness_map, max_depth, visualize,parameters=None):
     current_state = start_state
     full_path = [current_state]
+    if not parameters:
+        alpha = 5
+        beta = 0.0
+        gamma = 0.5
+    else:
+        alpha = parameters[0]
+        beta = parameters[1]
+        gamma = parameters[2]
+    # # distance
+    # alpha = 5
+    # # narrow
+    # beta = 0.0
+    # # speed
+    # gamma = 0.5
 
-    # distance
-    alpha = 0.5
-    # narrow
-    beta = 0.0
-    # speed
-    gamma = 0.5
-
-    delta = 1.1
+    # delta = 1.1
 
     while not reached_goal(current_state, goals):
         graph = build_graph(track, current_state, max_depth, narrowness_map, distance_map, alpha, beta, gamma)
@@ -239,13 +266,13 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
 
         if not graph or len(graph) == 0:
             print("No further graph could be built. Aborting.")
-            return full_path
+            return full_path,PathFindingStatus.ABORTING
 
         local_goal = find_best_local_goal(track, graph, current_state, distance_map, narrowness_map, alpha,
                                           beta, gamma)
         if not local_goal:
             print("No reachable local goal found.")
-            return full_path
+            return full_path,PathFindingStatus.NO_LOCAL_GOAL
 
         try:
             partial_path = nx.astar_path(
@@ -257,13 +284,13 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
             )
         except nx.NetworkXNoPath:
             print("No path found in this chunk.")
-            return full_path
+            return full_path,PathFindingStatus.NO_PATH_FOUND
 
         # Add to path, skip duplicate current node
         full_path += partial_path[1:]
         current_state = partial_path[-1]
 
-    return full_path
+    return full_path,PathFindingStatus.SUCCESS
 
 
 def combined_heuristic(
@@ -290,14 +317,14 @@ def combined_heuristic(
 
 
 def save_path_as_csv(path, output_path, track):
-    with open(output_path, 'w') as f:
+    with open(output_path, 'w',newline="\n") as f:
         for state in path:
             # adjust for different origins
             transformed_row = track.rows - 1 - state.row
             f.write(f"{state.col},{transformed_row}\n")
 
 
-def find_path(track_path, visualize, output, depth):
+def find_path(track_path, visualize, output, depth,parameters=None):
     track = Track(loadTrack(track_path))
 
     start = track.getStartCoordinates()
@@ -328,7 +355,7 @@ def find_path(track_path, visualize, output, depth):
                  cmap_label="Local Width (Free Cells)")
 
     print("Running chunked A*...")
-    path = solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, visualize)
+    path,code = solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, visualize,parameters)
 
     if visualize:
         draw_path_on_track(track=track, path=path, title="Racetrack A* Result", show_acceleration=True)
@@ -343,6 +370,7 @@ def find_path(track_path, visualize, output, depth):
         )
     else:
         print("No valid path found.")
+    return code
 
 
 if __name__ == "__main__":

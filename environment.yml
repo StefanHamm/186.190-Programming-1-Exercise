@@ -6,3 +6,8 @@ dependencies:
   - python=3.10
   - numpy
   - networkx
+  - matplotlib
+  - pygame
+  - scikit-learn
+  - tqdm
+  - pandas

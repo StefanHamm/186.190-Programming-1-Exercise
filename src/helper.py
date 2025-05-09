@@ -6,7 +6,7 @@ import platform
 import shlex # For safer command string joining/splitting
 import shutil
 
-from src.state import CarState
+from .state import CarState
 
 
 # --- Functions running on the HOST ---
