@@ -1,155 +1,128 @@
 import numpy as np
-from sklearn.model_selection import ParameterGrid
+# from sklearn.model_selection import ParameterGrid # Not used in this version
 from tqdm import tqdm # For progress bars, install with: pip install tqdm
-import pandas as pd # For easier data handling and analysis, install with: pip install pandas
+# import pandas as pd # Not used in this version
 import os
+import time # Import the time module
+
 # Attempt to import the user's module
-# If this script is in the same directory as the 'src' folder, this should work:
 try:
     from src.construction import find_path, PathFindingStatus
 except ImportError:
-    # Fallback if the import path is different or for testing purposes
-    print("Warning: Could not import from 'src.construction'. Using mock implementation.")
-    # Mock implementation for PathFindingStatus
-    # class PathFindingStatus:
-    #     SUCCESSFUL = "SUCCESSFUL"
-    #     FAILED_TIMEOUT = "FAILED_TIMEOUT" # Example other status
-    #     FAILED_OBSTACLE = "FAILED_OBSTACLE" # Example other status
+    print("Warning: Could not import from 'src.construction'. Using mock implementation if needed.")
+    # Define a basic PathFindingStatus if the import fails, so the script can run
+    class PathFindingStatus:
+        SUCCESS = "SUCCESS" # Example default success status
+        # Add other statuses if your mock find_path or actual find_path returns them
+        ABORTING = "ABORTING"
+        NO_VALID_PATH = "NO_VALID_PATH"
+        # etc.
 
-    # Mock implementation for find_path
-    # def find_path(track_path, visualize, output, depth, parameters=None):
-    #     """
-    #     Mock function for find_path.
-    #     Simulates success based on simple parameter thresholds.
-    #     """
-    #     alpha, beta, gamma = parameters
-    #     # print(f"Mocking find_path for: {track_path}, depth={depth}, alpha={alpha:.2f}, beta={beta}, gamma={gamma:.2f}")
-        
-    #     # Example logic: higher alpha/gamma and depth might be better
-    #     if alpha > 0.5 and gamma > 0.5 and depth >= 5:
-    #         if "track_01" in track_path or "track_02" in track_path : # Succeed on specific tracks
-    #              return PathFindingStatus.SUCCESSFUL
-    #     if alpha > 2 and gamma > 2 and depth >= 3: # Different condition for other tracks
-    #         if "track_03" in track_path or "track_04" in track_path or "track_05" in track_path:
-    #              return PathFindingStatus.SUCCESSFUL
-        
-    #     if depth < 3 : return PathFindingStatus.FAILED_TIMEOUT
-    #     return PathFindingStatus.FAILED_OBSTACLE # Default to fail
+    # A very simple mock find_path if the real one isn't available
+    # This is just to make the script runnable for testing the timing logic.
+    # Replace with your actual find_path or ensure src.construction is importable.
+    def find_path(track_path, visualize, output, depth, parameters=None):
+        print(f"Mock find_path called for {track_path} with depth {depth} and params {parameters}")
+        # Simulate some work
+        time.sleep(np.random.uniform(0.1, 0.5)) # Simulate some processing time
+        # Simulate a status
+        if "track_02" in track_path:
+            return PathFindingStatus.SUCCESS
+        else:
+            return PathFindingStatus.NO_VALID_PATH
+
 
 # --- Configuration ---
-tracks = [f"tracks/track_0{i}.t" for i in range(1, 10)] # track_01.t to track_09.t
+tracks_base_names = [f"track_0{i}" for i in range(2, 10)] # track_02 to track_09
+tracks_base_names.append("track_10")
+tracks = [f"tracks/{name}.t" for name in tracks_base_names]
 
-# Define parameter ranges for the grid search
-# Alpha and Gamma: log-scaled
-# np.logspace(start_exponent, end_exponent, num_points)
-# e.g., -2 to 1 means 10^-2 (0.01) to 10^1 (10)
-alpha_values = np.logspace(-2, 1, 4)  # e.g., [0.01, 0.1, 1.0, 10.0]
-gamma_values = np.logspace(-2, 1, 4)  # e.g., [0.01, 0.1, 1.0, 10.0]
+# Parameters for this run
+current_depth = 3
+current_parameters = [2, 0, 0] # alpha, beta, gamma
 
-# Depth: integer values
-depth_values = [3, 5, 7] # Example depths, adjust as needed
-
-# Beta is fixed
-beta_fixed = 0
-
-param_grid_dict = {
-    'alpha': alpha_values,
-    'gamma': gamma_values,
-    'depth': depth_values
-}
-
-grid = ParameterGrid(param_grid_dict)
-num_combinations = len(list(grid)) # ParameterGrid is a generator, convert to list for len
-print(f"Total parameter combinations to test: {num_combinations}")
-print(f"Number of tracks: {len(tracks)}")
-print(f"Total runs: {num_combinations * len(tracks)}")
-
-# --- Run Optimization ---
-results = []
-
-for params in tqdm(grid, desc="Parameter Sets"):
-    alpha = params['alpha']
-    gamma = params['gamma']
-    depth = params['depth']
-    
-    # Construct the parameters list for find_path: [alpha, beta, gamma]
-    current_algo_params = [alpha, beta_fixed, gamma]
-    
-    successes_for_this_param_set = 0
-    
-    for track_path in tqdm(tracks, desc=f"Tracks (a={alpha:.2f},g={gamma:.2f},d={depth})", leave=False):
+# Clear out the routes folder and the visualizations folder
+if os.path.exists("routes"):
+    print("Clearing routes folder...")
+    for file_name in os.listdir("routes"):
+        file_path = os.path.join("routes", file_name)
         try:
-            outputpath = f"routes/{track_path.split('/')[-1].replace('.t', '')}_a{alpha:.2f}_g{gamma:.2f}_d{depth}.csv"
-            
-            status = find_path(
-                track_path=track_path,
-                visualize=False, # No visualization during optimization
-                output=outputpath,     # No output files during optimization
-                depth=depth,
-                parameters=current_algo_params
-            )
-            
-            is_successful = (status == PathFindingStatus.SUCCESSFUL)
-            if is_successful:
-                successes_for_this_param_set += 1
-            
-            results.append({
-                'alpha': alpha,
-                'gamma': gamma,
-                'depth': depth,
-                'track': track_path,
-                'status': status,
-                'successful': is_successful
-            })
-            
+            if os.path.isfile(file_path):
+                os.remove(file_path)
         except Exception as e:
-            print(f"Error running find_path for {track_path} with params {params}: {e}")
-            results.append({
-                'alpha': alpha,
-                'gamma': gamma,
-                'depth': depth,
-                'track': track_path,
-                'status': f"ERROR: {e}",
-                'successful': False
-            })
-            
-        #rename the output file in the visulizations folder
-        # oritginal name is viusalizations/final_output.pdf
-        
-        # if the file exists:
-        if os.path.exists("visualizations/final_output.pdf"):
-            new_output_path = f"visualizations/{track_path.split('/')[-1].replace('.t', '')}_a{alpha:.2f}_g{gamma:.2f}_d{depth}.pdf"
-            os.rename("visualizations/final_output.pdf", new_output_path)
-            
-# --- Analyze Results ---
-if not results:
-    print("No results were generated. Check for errors.")
+            print(f"Error deleting file {file_path}: {e}")
 else:
-    df_results = pd.DataFrame(results)
+    os.makedirs("routes", exist_ok=True)
 
-    # Group by parameters and count total successes
-    # The key for grouping will be a tuple of the parameters
-    summary = df_results.groupby(['alpha', 'gamma', 'depth'])['successful'].sum().reset_index(name='total_successful_tracks')
+if os.path.exists("visualizations"):
+    print("Clearing visualizations folder...")
+    for file_name in os.listdir("visualizations"):
+        file_path = os.path.join("visualizations", file_name)
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error deleting file {file_path}: {e}")
+else:
+    os.makedirs("visualizations", exist_ok=True)
+
+
+print(f"\nProcessing tracks with depth={current_depth} and parameters={current_parameters}")
+results_summary = []
+
+for track_path in tqdm(tracks, desc="Processing Tracks"):
+    track_name_no_ext = track_path.split('/')[-1].replace('.t', '')
+    output_csv_path = f"routes/{track_name_no_ext}_d{current_depth}.csv"
     
-    # Sort by the number of successful tracks in descending order
-    summary_sorted = summary.sort_values(by='total_successful_tracks', ascending=False)
+    status = None # Initialize status
+    duration = -1.0 # Initialize duration
 
-    print("\n--- Optimization Summary ---")
-    print(f"Tested on {len(tracks)} tracks.")
-    print(summary_sorted.to_string())
+    try:
+        start_time = time.perf_counter() # Record start time
 
-    if not summary_sorted.empty:
-        best_params_row = summary_sorted.iloc[0]
-        print("\n--- Best Performing Parameters ---")
-        print(f"Alpha: {best_params_row['alpha']:.4f}")
-        print(f"Gamma: {best_params_row['gamma']:.4f}")
-        print(f"Depth: {best_params_row['depth']}")
-        print(f"Successful on: {best_params_row['total_successful_tracks']}/{len(tracks)} tracks")
-    else:
-        print("\nNo successful runs found for any parameter combination.")
+        status_obj = find_path(
+            track_path=track_path,
+            visualize=False, # No visualization during timing runs
+            output=output_csv_path,
+            depth=current_depth,
+            parameters=current_parameters
+        )
+        # Ensure status is a string for consistent printing, especially if status_obj is an Enum
+        status = status_obj.value if hasattr(status_obj, 'value') else str(status_obj)
 
-    # Optional: Save detailed results to CSV
-    df_results.to_csv("optimization_results_detailed.csv", index=False)
-    summary_sorted.to_csv("optimization_summary.csv", index=False)
-    print("\nDetailed results saved to 'optimization_results_detailed.csv'")
-    print("Summary saved to 'optimization_summary.csv'")
+
+        end_time = time.perf_counter() # Record end time
+        duration = end_time - start_time # Calculate duration
+
+        # print(f"Track: {track_path}, Status: {status}, Duration: {duration:.4f} seconds")
+        
+        # Rename the output PDF if it exists
+        # Assuming find_path always creates "visualizations/final_output.pdf" if successful and visualize=True
+        # (though visualize=False here, so this part might only be relevant if find_path still produces it)
+        default_pdf_output = "visualizations/final_output.pdf"
+        if os.path.exists(default_pdf_output):
+            new_pdf_output_path = f"visualizations/{track_name_no_ext}_d{current_depth}.pdf"
+            try:
+                os.rename(default_pdf_output, new_pdf_output_path)
+                # print(f"Renamed {default_pdf_output} to {new_pdf_output_path}")
+            except Exception as e:
+                print(f"Error renaming PDF for {track_path}: {e}")
+        
+    except Exception as e:
+        # This will catch errors from find_path OR from the timing/renaming logic itself
+        print(f"An error occurred while processing {track_path}: {e}")
+        status = "ERROR_IN_SCRIPT" # Indicate an error occurred during the processing loop
+    
+    finally:
+        results_summary.append({
+            "track": track_path,
+            "status": status,
+            "duration_seconds": duration
+        })
+
+# Print summary of results
+print("\n--- Timing Summary ---")
+for result in results_summary:
+    print(f"Track: {result['track']:<20} | Status: {str(result['status']):<30} | Duration: {result['duration_seconds']:.4f}s")
+
+print("\nProcessing complete.")

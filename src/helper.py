@@ -22,6 +22,7 @@ class Track:
             raise ValueError("Input track must be a 2D numpy array.")
         self.track = track
         self.rows, self.cols = track.shape
+        self.grass_coordinates = self.getGrassCoordinates()
 
     def getGoalCoordinates(self) -> list[tuple[int, int]]:
         """
@@ -36,6 +37,20 @@ class Track:
         # and convert the result to a list.
         goal_coordinates = list(zip(goal_rows, goal_cols))
         return goal_coordinates
+    
+    def getGrassCoordinates(self) -> list[tuple[int, int]]:
+        """
+        Returns a list of grass coordinates
+        Searches the track array for cells containing 'G'.
+        """
+        # np.where returns a tuple of arrays (one for each dimension)
+        # containing the indices where the condition is true.
+        grass_rows, grass_cols = np.where(self.track == 'G')
+
+        # Zip the row and column arrays together to create coordinate tuples
+        # and convert the result to a list.
+        grass_coordinates = list(zip(grass_rows, grass_cols))
+        return grass_coordinates
 
     def getStartCoordinates(self) -> tuple[int, int] | None:
         """
