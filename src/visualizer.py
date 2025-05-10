@@ -422,6 +422,39 @@ def animate_paths_pygame(track: Track, paths_list: list,
 
     pygame.quit()
 
+def draw_graph_on_track(graph, track, title="Graph on Track"):
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # Background: grayscale racetrack
+    color_map = np.full((track.rows, track.cols), 1.0)
+    for r in range(track.rows):
+        for c in range(track.cols):
+            cell = track.get_cell_type((r, c))
+            if cell == 'O':
+                color_map[r, c] = 0.0  # Wall
+            elif cell == 'G':
+                color_map[r, c] = 0.5  # Grass
+            elif cell == 'F':
+                color_map[r, c] = 0.3  # Finish
+            elif cell == 'S':
+                color_map[r, c] = 0.7  # Start
+            else:
+                color_map[r, c] = 0.9  # Road
+
+    ax.imshow(color_map, cmap='gray', origin='upper')
+
+    # Graph overlay
+    pos = {node: (node.col, node.row) for node in graph.nodes()}
+    nx.draw_networkx_nodes(graph, pos, node_size=10, node_color='cyan', ax=ax, alpha=0.6)
+    nx.draw_networkx_edges(graph, pos, edge_color='orange', alpha=0.3, arrows=False, ax=ax)
+
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.axis("equal")
+    plt.tight_layout()
+    plt.show()
+
 # Example Usage (updated to use PlotManager)
 if __name__ == '__main__':
     # Node class for graph plotting (must be hashable for NetworkX)
