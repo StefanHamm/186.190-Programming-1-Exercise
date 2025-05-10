@@ -3,10 +3,9 @@ from collections import deque
 
 from matplotlib import pyplot as plt
 
-from .helper import loadTrack, displayTrack, run_visualization_in_docker, Track
+from .helper import loadTrack, run_visualization_in_docker, Track
 from .helper import bresenham_line, normalize_map,is_invalid_move
-#from .visualizer import #draw_map, plot_manager
-#from .visualizer import #draw_graph, draw_path_on_track
+from .visualizer import draw_graph_on_track
 from .visualizer import PlotManager,animate_paths_pygame
 import networkx as nx
 import numpy as np
@@ -40,33 +39,6 @@ def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
                 narrowness_map[r, c] = free / total * 100
 
     return normalize_map(narrowness_map)
-
-
-def is_valid_transition(track: Track, from_state: CarState, to_state: CarState) -> bool:
-    if not track.is_valid_coordinate(to_state.position()):
-        return False
-
-    if from_state.position() == to_state.position():
-        return False
-
-    # Check for obstacles along the path
-    from_row, from_col = from_state.position()
-    to_row, to_col = to_state.position()
-    line_cells = bresenham_line(from_col, from_row, to_col, to_row)
-
-    for cell in line_cells:
-        if not track.is_valid_coordinate(cell):
-            return False
-        if track.get_cell_type(cell) == 'O':
-            return False
-
-    cell_type = track.get_cell_type(to_state.position())
-    if cell_type == 'O':
-        return False
-    if cell_type == 'G':
-        if abs(to_state.v_row) > abs(from_state.v_row) or abs(to_state.v_col) > abs(from_state.v_col):
-            return False  # No acceleration on grass
-    return True
 
 
 def precompute_goal_heuristic(track: Track):
@@ -149,9 +121,6 @@ def build_graph(track: Track, start_state: CarState, max_depth,
             continue
         visited_in_this_build.add(current)
 
-        # DO NOT USE visited_global.add(current) here for reasons explained above.
-        # visited_global.add(current) # <--- REMOVE THIS LINE
-
         if depth >= max_depth:
             continue
 
@@ -164,24 +133,23 @@ def build_graph(track: Track, start_state: CarState, max_depth,
                 new_state = CarState(new_r, new_c, new_vr, new_vc)
 
                 if is_invalid_move(track, current, new_state):
-                    #print(f"Invalid move from {current} to {new_state}.")
                     continue
-                
-                if is_valid_transition(track, current, new_state):
-                    weight = getWeight(new_state, distance_map, narrowness_map, alpha, beta, gamma, track)
-                    
-                    # Add edge (also adds nodes current and new_state to g if not already present)
-                    g.add_edge(current, new_state, weight=weight)
 
-                    if new_state not in visited_in_this_build:
-                        # Add to queue only if it hasn't been expanded from yet in this build.
-                        # (Note: new_state could already be IN the queue, added by another parent. BFS handles this.)
-                        queue.append((new_state, depth + 1))
+                weight = getWeight(new_state, distance_map, narrowness_map, alpha, beta, gamma, track)
+
+                # Add edge (also adds nodes current and new_state to g if not already present)
+                g.add_edge(current, new_state, weight=weight)
+
+                if new_state not in visited_in_this_build:
+                    # Add to queue only if it hasn't been expanded from yet in this build.
+                    # (Note: new_state could already be IN the queue, added by another parent. BFS handles this.)
+                    queue.append((new_state, depth + 1))
                 # else:
                     # Invalid transition (crash)
                     # print(f"Invalid transition from {current} to {new_state}") # Can be verbose
 
     # print(f"  build_graph: Built graph with {len(g.nodes())} nodes, {len(g.edges())} edges. Explored {len(visited_in_this_build)} states.")
+    draw_graph_on_track(g, track)
     return g
 
 

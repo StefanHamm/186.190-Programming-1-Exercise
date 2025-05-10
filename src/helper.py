@@ -521,6 +521,9 @@ def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> b
         if abs(from_state.v_col) == 1 and abs(to_state.v_col) > abs(from_state.v_col):
             return True
 
+    if from_state.position() == to_state.position():
+        return True
+
     return False
 
 def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
