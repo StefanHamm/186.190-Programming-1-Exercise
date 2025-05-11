@@ -1,4 +1,4 @@
-import perf
+import pyperf
 
 from src.helper import Track, loadTrack
 from src.bfs import bfs_racetrack
@@ -20,6 +20,6 @@ if __name__ == "__main__":
     narrowness_map = compute_narrowness_map(track)
     depth = 3
 
-    runner = perf.Runner()
+    runner = pyperf.Runner()
     runner.bench_func("bfs", benchmark_bfs)
     runner.bench_func("construction", benchmark_construction)
