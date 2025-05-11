@@ -42,11 +42,13 @@ def bfs_racetrack(track: Track) -> list[CarState]:
                 new_col = current_state.col + new_vy
                 new_state = CarState(new_row, new_col, new_vx, new_vy)
 
+                if new_state in visited:
+                    continue
+
                 if is_invalid_move(track, current_state, new_state):
                     continue
 
-                if new_state not in visited:
-                    queue.append((new_state, new_path))
+                queue.append((new_state, new_path))
 
     print("No valid path found.")
     return []
