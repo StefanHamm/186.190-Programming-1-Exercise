@@ -1,8 +1,8 @@
 from collections import deque
 
-from construction import save_path_as_csv
-from helper import Track, loadTrack, bresenham_line, run_visualization_in_docker, is_invalid_move
-from state import CarState
+from src.construction import save_path_as_csv
+from src.helper import Track, loadTrack, bresenham_line, run_visualization_in_docker, is_invalid_move
+from src.state import CarState
 import argparse
 
 
