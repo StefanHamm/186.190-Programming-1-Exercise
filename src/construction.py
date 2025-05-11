@@ -3,15 +3,15 @@ from collections import deque
 
 from matplotlib import pyplot as plt
 
-from .helper import loadTrack, run_visualization_in_docker, Track
-from .helper import bresenham_line, normalize_map,is_invalid_move
-from .visualizer import draw_graph_on_track
-from .visualizer import PlotManager,animate_paths_pygame
+from src.helper import loadTrack, run_visualization_in_docker, Track
+from src.helper import bresenham_line, normalize_map,is_invalid_move
+from src.visualizer import draw_graph_on_track
+from src.visualizer import PlotManager,animate_paths_pygame
 import networkx as nx
 import numpy as np
 import argparse
 
-from .state import CarState
+from src.state import CarState
 
 visited_global = set()
 plot_manager = PlotManager()  # Initialize the PlotManager
@@ -273,7 +273,7 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
             print(f"Timeout reached ({MAX_TOTAL_TIMESTEPS} timesteps). Aborting.")
             return full_path,pathOfPaths, PathFindingStatus.ABORTING
         
-        print(f"T{timestep}: CS={current_state}, OpDepth={current_operative_depth}, StepFails={consecutive_step_failures}/{MAX_CONSECUTIVE_STEP_FAILURES}")
+        #print(f"T{timestep}: CS={current_state}, OpDepth={current_operative_depth}, StepFails={consecutive_step_failures}/{MAX_CONSECUTIVE_STEP_FAILURES}")
         
         graph = build_graph(track, current_state, current_operative_depth, narrowness_map, distance_map, alpha, beta, gamma, max_nodes_to_explore=1000 + current_operative_depth * 200) # Slightly more budget for deeper graphs
 
@@ -307,7 +307,7 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
                         print(f"  A* path planning issue: unexpected partial_path from {current_state} to {local_goal}.")
                     else:
                         # --- SUCCESSFUL PLANNING FOR THIS STEP ---
-                        print(f"  Successfully planned partial path to {local_goal}.")
+                        #print(f"  Successfully planned partial path to {local_goal}.")
                         consecutive_step_failures = 0 # Reset on full success of a step
 
                         # Optional: Logic to gradually decrease current_operative_depth
@@ -316,7 +316,7 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
                         #     print(f"  Gradually reducing depth to {current_operative_depth}")
 
                         if partial_path[-1].position() in goals:
-                            print("Goal reached directly by partial path!")
+                            #print("Goal reached directly by partial path!")
                             full_path.extend(partial_path[1:])
                             return full_path,pathOfPaths, PathFindingStatus.SUCCESS
                         
@@ -461,6 +461,17 @@ def find_path(track_path, visualize, output, depth,parameters=None):
         )
     else:
         print("No valid path found.")
+    return code
+
+def fast_path(path,paramet):
+    track = Track(loadTrack(path))
+    start = track.getStartCoordinates()
+    start_state = CarState(start[0], start[1], 0, 0)
+    goals = track.getGoalCoordinates()
+    distance_map = precompute_goal_heuristic(track)
+    narrowness_map = compute_narrowness_map(track)
+    depth = 3
+    path,paths,code = solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, False,paramet)
     return code
 
 

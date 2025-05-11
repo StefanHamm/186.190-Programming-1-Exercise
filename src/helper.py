@@ -6,7 +6,7 @@ import platform
 import shlex  # For safer command string joining/splitting
 import shutil
 
-from .state import CarState
+from src.state import CarState
 
 
 # --- Functions running on the HOST ---
@@ -565,6 +565,153 @@ def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
 
     return True
 
+# def is_invalid_move_new(track: Track, from_state: CarState, to_state: CarState) -> bool:
+#     # Cache state attributes
+#     from_r, from_c = from_state.row, from_state.col
+#     to_r, to_c = to_state.row, to_state.col
+#     from_vr, from_vc = from_state.v_row, from_state.v_col
+#     to_vr, to_vc = to_state.v_row, to_state.v_col
+
+#     if not track.is_valid_coordinate((to_r, to_c)):
+#         return True
+
+#     # If no actual movement in terms of position
+#     if from_r == to_r and from_c == to_c:
+#         # Original code has "from_state.position() == to_state.position()" at the end.
+#         # If this implies invalid if *only* velocity changes, move it here.
+#         # If it means "no move at all", it might be better handled by this.
+#         # Let's stick to the original placement for now unless clarified.
+#         pass
+
+
+#     # Obstacle Collision Check using Bresenham's line
+#     # The line for Liang-Barsky is between cell centers.
+#     # (from_c, from_r) are (x1, y1) and (to_c, to_r) are (x2, y2)
+#     # Cell (r,c) has its center at (c,r) in (x,y) coordinates for Liang-Barsky.
+#     # Cell (r,c) boundaries for Liang-Barsky: x_min=c-0.5, y_min=r-0.5, x_max=c+0.5, y_max=r+0.5.
+    
+#     # Cells to check are those whose centers are on or near the line path
+#     # If from_state.row/col are guaranteed integers (cell indices)
+#     line_path_cells = bresenham_line_cells(from_r, from_c, to_r, to_c)
+
+#     for r_cell, c_cell in line_path_cells:
+#         # The bresenham algorithm itself might generate cells slightly out if the line starts/ends
+#         # near a boundary and goes 'out'. However, is_valid_coordinate should catch this.
+#         # Also, the first cell (from_state) collision is implicitly handled if it's an obstacle.
+#         if not track.is_valid_coordinate((r_cell, c_cell)):
+#             # This case might indicate the path goes out of bounds.
+#             # Depending on game rules, this might be an immediate invalid move.
+#             # For now, we only care if an *obstacle* is hit.
+#             # If to_state is valid, but path goes out and back in, this is complex.
+#             # The original loop `min_row-1` etc. would check obstacles outside.
+#             # Bresenham checks cells *on the path*. If path goes out of bounds and hits an
+#             # 'imaginary' obstacle there, this won't detect it.
+#             # But track.is_obstacle should only be true for valid coordinates.
+#             continue
+
+#         if track.is_obstacle[r_cell, c_cell]:
+#             if liang_barsky_intersect(c_cell - 0.5, # x_min
+#                                       r_cell - 0.5, # y_min
+#                                       c_cell + 0.5, # x_max
+#                                       r_cell + 0.5, # y_max
+#                                       from_c,       # x1 (line start)
+#                                       from_r,       # y1 (line start)
+#                                       to_c,         # x2 (line end)
+#                                       to_r          # y2 (line end)
+#                                       ):
+#                 return True
+    
+#     # Grass rule checks
+#     # Only check grass rules if starting on grass
+#     # The original code uses from_state.position() which gives (row, col)
+#     start_pos_r, start_pos_c = from_r, from_c # from_state.position() is from_r, from_c
+#     if track.is_grass[start_pos_r, start_pos_c]:
+#         abs_from_vr = abs(from_vr)
+#         abs_to_vr = abs(to_vr)
+#         abs_from_vc = abs(from_vc)
+#         abs_to_vc = abs(to_vc)
+
+#         # If current speed component is >= 2, cannot maintain or increase speed
+#         if abs_from_vr >= 2 and abs_to_vr >= abs_from_vr:
+#             return True
+#         if abs_from_vc >= 2 and abs_to_vc >= abs_from_vc:
+#             return True
+        
+#         # If current speed component is 1, cannot increase speed
+#         if abs_from_vr == 1 and abs_to_vr > abs_from_vr:
+#             return True
+#         if abs_from_vc == 1 and abs_to_vc > abs_from_vc:
+#             return True
+
+#     # Final check: if the car hasn't moved position (e.g., only velocity changed, or tried to move to same spot)
+#     # This check might be slightly different from checking (from_r, from_c) == (to_r, to_c)
+#     # if CarState.position() involves more complex logic, but assuming it's direct row/col.
+#     if from_r == to_r and from_c == to_c: # Effectively from_state.position() == to_state.position()
+#         return True # Invalid if no change in position
+
+#     return False
+
+def get_line_cells(r0: int, c0: int, r1: int, c1: int) -> list[tuple[int, int]]:
+    """
+    Get all integer grid cells that the line from (r0, c0) to (r1, c1) passes through.
+    Uses Bresenham's line algorithm.
+    (r0,c0) and (r1,c1) are cell indices (integers).
+    """
+    cells = []
+    dr = abs(r1 - r0)
+    dc = abs(c1 - c0)
+    
+    r, c = r0, c0
+    
+    # Determine step direction
+    sr = 1 if r1 > r0 else -1
+    sc = 1 if c1 > c0 else -1
+    
+    # Decision parameter
+    if dc > dr: # Slope < 1
+        err = dc // 2
+        for _ in range(dc):
+            cells.append((r, c))
+            err -= dr
+            if err < 0:
+                r += sr
+                err += dc
+            c += sc
+    else: # Slope >= 1
+        err = dr // 2
+        for _ in range(dr):
+            cells.append((r, c))
+            err -= dc
+            if err < 0:
+                c += sc
+                err += dr
+            r += sr
+            
+    cells.append((r1, c1)) # Ensure endpoint is included
+    return cells
+
+# A slightly different Bresenham implementation that might be more common/robust:
+def bresenham_line_cells(r0: int, c0: int, r1: int, c1: int) -> list[tuple[int, int]]:
+    cells = []
+    dr = abs(r1 - r0)
+    dc = abs(c1 - c0)
+    sr = 1 if r0 < r1 else -1
+    sc = 1 if c0 < c1 else -1
+    err = dr - dc
+
+    r, c = r0, c0
+    while True:
+        cells.append((r, c))
+        if r == r1 and c == c1:
+            break
+        e2 = 2 * err
+        if e2 >= -dc: # Use >= for diagonal preference
+            err -= dc
+            r += sr
+        if e2 <= dr:  # Use <= for diagonal preference
+            err += dr
+            c += sc
+    return cells
 
 # --- Main execution block (runs on HOST) ---
 
