@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 import platform
-import shlex # For safer command string joining/splitting
+import shlex  # For safer command string joining/splitting
 import shutil
 
 from .state import CarState
@@ -24,6 +24,13 @@ class Track:
         self.rows, self.cols = track.shape
         self.grass_coordinates = self.getGrassCoordinates()
 
+        # Precompute boolean masks for each cell type for fast lookup
+        self.is_obstacle: np.ndarray = (self.track == 'O')
+        self.is_grass: np.ndarray = (self.track == 'G')
+        self.is_track: np.ndarray = (self.track == 'T')
+        self.is_goal: np.ndarray = (self.track == 'F')
+        self.is_start: np.ndarray = (self.track == 'S')
+
     def getGoalCoordinates(self) -> list[tuple[int, int]]:
         """
         Returns a list of goal coordinates (row, column).
@@ -37,7 +44,7 @@ class Track:
         # and convert the result to a list.
         goal_coordinates = list(zip(goal_rows, goal_cols))
         return goal_coordinates
-    
+
     def getGrassCoordinates(self) -> list[tuple[int, int]]:
         """
         Returns a list of grass coordinates
@@ -89,7 +96,7 @@ class Track:
             row, col = coord
             return self.track[row, col]
         return None
-    
+
     def get_neighbouring_cell_types(self, coord: tuple[int, int]) -> list[str]:
         """
         Returns a list of cell types for the 4 neighbouring cells (up, down, left, right).
@@ -146,7 +153,7 @@ def loadTrack(path: str) -> np.ndarray:
             print(f"Error: Track file '{path}' has inconsistent line lengths.")
             # Return an empty array or raise a ValueError
             # raise ValueError(f"Track file '{path}' has inconsistent line lengths.")
-            return np.array([[]], dtype='U1').reshape(0, 0) # Returning empty for now
+            return np.array([[]], dtype='U1').reshape(0, 0)  # Returning empty for now
 
         # Convert the list of character lists into a NumPy array
         # 'U1' dtype ensures each element is treated as a single Unicode character
@@ -159,12 +166,13 @@ def loadTrack(path: str) -> np.ndarray:
     except Exception as e:
         raise Exception(f"Error loading track file '{path}': {e}") from e
 
+
 def displayTrack(track: np.ndarray):
     """
     Display the track.
     :param track: Track as a numpy array.
     """
-    #print(track)
+    # print(track)
     # Convert the track to a string representation
     if track.size == 0:
         print("<Empty Track>")
@@ -175,23 +183,23 @@ def displayTrack(track: np.ndarray):
             # Join elements in the row without spaces if they are single chars
             # Check the first element; assumes consistent rows
             if len(row) > 0 and isinstance(row[0], str) and len(row[0]) == 1:
-                 print("".join(row))
+                print("".join(row))
             else:
-                 print(" ".join(map(str, row))) # Fallback for other types/multi-char strings
+                print(" ".join(map(str, row)))  # Fallback for other types/multi-char strings
     elif track.ndim == 1:
-        print(" ".join(map(str, track))) # Handle 1D array
+        print(" ".join(map(str, track)))  # Handle 1D array
     else:
-        print(track) # Fallback for other dimensions
+        print(track)  # Fallback for other dimensions
 
 
 # --- Function orchestrating Docker execution ---
 
 def run_visualization_in_docker(
-    trackFilePath: str,
-    routeFilePath: str,
-    outputPdfPath: str,
-    docker_image: str = "tran-optim",
-    intermediate_basename: str = "visualization_output" # Base name for .tex/.pdf inside container
+        trackFilePath: str,
+        routeFilePath: str,
+        outputPdfPath: str,
+        docker_image: str = "tran-optim",
+        intermediate_basename: str = "visualization_output"  # Base name for .tex/.pdf inside container
 ):
     """
     Runs the Perl script and pdflatex inside a Docker container.
@@ -208,10 +216,11 @@ def run_visualization_in_docker(
         docker_image: Name of the Docker image with Perl and pdflatex.
         intermediate_basename: Basename for intermediate files inside the container.
     """
-    
-    #check if the docker image exists , if not build it 
+
+    # check if the docker image exists , if not build it
     try:
-        subprocess.run(["docker", "image", "inspect", docker_image], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(["docker", "image", "inspect", docker_image], check=True, stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
     except subprocess.CalledProcessError:
         print(f"Docker image '{docker_image}' not found. Attempting to build it...")
         try:
@@ -220,11 +229,9 @@ def run_visualization_in_docker(
         except subprocess.CalledProcessError as e:
             print(f"Error building Docker image '{docker_image}': {e}")
             sys.exit(1)
-    
-    
-    
+
     host_cwd = os.getcwd()
-    container_workdir = "/app" # Standard workdir inside the container
+    container_workdir = "/app"  # Standard workdir inside the container
 
     print(f"--- Preparing Docker Run ---")
     print(f"Host CWD: {host_cwd}")
@@ -261,25 +268,24 @@ def run_visualization_in_docker(
     # Handle path format for Docker on Windows if necessary
     if platform.system() == "Windows":
         mount_source = mount_source.replace('\\', '/')
-        if ":" in mount_source: # e.g., C:/Users/...
+        if ":" in mount_source:  # e.g., C:/Users/...
             drive = mount_source[0].lower()
-            mount_source = f"/{drive}{mount_source[2:]}" # /c/Users/...
+            mount_source = f"/{drive}{mount_source[2:]}"  # /c/Users/...
     volume_map = f"{mount_source}:{container_workdir}"
     print(f"Volume mapping: {volume_map}")
 
     # --- Define Paths *Inside* the Container ---
     # These paths are relative to container_workdir (/app)
     # Use forward slashes for paths inside the container, even on Windows host
-    container_viz_dir = "visualizations_temp" # Temp dir inside container
+    container_viz_dir = "visualizations_temp"  # Temp dir inside container
     container_tex_file = f"{container_viz_dir}/{intermediate_basename}.tex"
     container_pdf_file = f"{container_viz_dir}/{intermediate_basename}.pdf"
     container_log_file = f"{container_viz_dir}/{intermediate_basename}.log"
-    container_perl_script = "src/visualise.pl" # Relative to /app
+    container_perl_script = "src/visualise.pl"  # Relative to /app
     # Input/Output paths passed to commands should also be relative to /app
     container_track_file = os.path.relpath(track_abs_path, host_cwd).replace('\\', '/')
     container_route_file = os.path.relpath(route_abs_path, host_cwd).replace('\\', '/')
     container_output_pdf_target = os.path.relpath(output_abs_path, host_cwd).replace('\\', '/')
-
 
     # --- Command sequence to execute *inside* the container ---
     # Use 'sh -c' to run multiple commands, ensuring paths are quoted if they contain spaces
@@ -360,12 +366,12 @@ def run_visualization_in_docker(
     # --- Construct the full docker run command ---
     docker_cmd = [
         "docker", "run",
-        "--rm",                      # Remove container after exit
-        f"--volume={volume_map}",    # Mount host CWD to /app
-        f"--workdir={container_workdir}", # Set working dir in container
-        docker_image,                # The image name
-        "sh", "-c",                  # Use shell to execute the command string
-        cmd_inside_docker            # The commands to run inside
+        "--rm",  # Remove container after exit
+        f"--volume={volume_map}",  # Mount host CWD to /app
+        f"--workdir={container_workdir}",  # Set working dir in container
+        docker_image,  # The image name
+        "sh", "-c",  # Use shell to execute the command string
+        cmd_inside_docker  # The commands to run inside
     ]
 
     print("-" * 30)
@@ -379,21 +385,22 @@ def run_visualization_in_docker(
         process = subprocess.run(docker_cmd, capture_output=True, text=True, check=True, timeout=180)
         print("--- Docker Container STDOUT ---")
         print(process.stdout)
-        print("--- Docker Container STDERR ---") # Print stderr even on success
+        print("--- Docker Container STDERR ---")  # Print stderr even on success
         print(process.stderr)
         print("-------------------------------")
         print("Docker command finished successfully according to exit code.")
 
         # Final verification: Check if the output file exists on the HOST
         if os.path.exists(output_abs_path) and os.path.getsize(output_abs_path) > 0:
-             print(f"\n[SUCCESS] Output PDF successfully created on host: {output_abs_path}")
+            print(f"\n[SUCCESS] Output PDF successfully created on host: {output_abs_path}")
         else:
-             print(f"\n[WARNING] Docker command finished, but final PDF not found or empty on host: {output_abs_path}")
-             print("Check container STDOUT/STDERR above for potential issues like file move errors inside the container.")
-             # Check if the temp visualization dir exists on host - it shouldn't if the container cleaned up
-             temp_viz_host_path = os.path.join(host_cwd, container_viz_dir)
-             if os.path.exists(temp_viz_host_path):
-                 print(f"Temporary directory '{container_viz_dir}' might still exist on host: {temp_viz_host_path}")
+            print(f"\n[WARNING] Docker command finished, but final PDF not found or empty on host: {output_abs_path}")
+            print(
+                "Check container STDOUT/STDERR above for potential issues like file move errors inside the container.")
+            # Check if the temp visualization dir exists on host - it shouldn't if the container cleaned up
+            temp_viz_host_path = os.path.join(host_cwd, container_viz_dir)
+            if os.path.exists(temp_viz_host_path):
+                print(f"Temporary directory '{container_viz_dir}' might still exist on host: {temp_viz_host_path}")
 
 
     except subprocess.CalledProcessError as e:
@@ -418,10 +425,10 @@ def run_visualization_in_docker(
     except Exception as e:
         print(f"[ERROR] An unexpected error occurred running docker: {e}")
         sys.exit(1)
-        
+
     # delete the directory visulaization_temp
-    #delete all files in the directory
-    
+    # delete all files in the directory
+
     temp_viz_host_path = os.path.join(host_cwd, container_viz_dir)
     print(f"Attempting to remove: {temp_viz_host_path}")
 
@@ -430,7 +437,7 @@ def run_visualization_in_docker(
         # This helps prevent accidentally deleting something else if paths get mixed up.
         if os.path.basename(temp_viz_host_path) == container_viz_dir:
             try:
-                shutil.rmtree(temp_viz_host_path) # Recursively remove the directory
+                shutil.rmtree(temp_viz_host_path)  # Recursively remove the directory
                 print(f"Successfully removed temporary directory: {temp_viz_host_path}")
             except OSError as e:
                 print(f"[WARNING] Could not remove temporary directory {temp_viz_host_path}: {e}")
@@ -438,13 +445,15 @@ def run_visualization_in_docker(
                 print("         You may need to remove it manually.")
         else:
             # This case should ideally not happen if code logic is correct
-            print(f"[WARNING] Safety check failed: Path '{temp_viz_host_path}' does not end with expected name '{container_viz_dir}'. Cleanup aborted.")
+            print(
+                f"[WARNING] Safety check failed: Path '{temp_viz_host_path}' does not end with expected name '{container_viz_dir}'. Cleanup aborted.")
     elif os.path.exists(temp_viz_host_path):
-         # Path exists but is not a directory (unexpected)
-         print(f"[WARNING] Path '{temp_viz_host_path}' exists but is not a directory. Cannot remove as directory.")
+        # Path exists but is not a directory (unexpected)
+        print(f"[WARNING] Path '{temp_viz_host_path}' exists but is not a directory. Cannot remove as directory.")
     else:
         # Directory not found, maybe it was already cleaned up inside container or never created due to earlier error
         print(f"Temporary directory '{temp_viz_host_path}' not found on host (already cleaned up or never created).")
+
 
 def bresenham_line(x0, y0, x1, y1):
     """
@@ -473,6 +482,7 @@ def bresenham_line(x0, y0, x1, y1):
 
     return cells
 
+
 def normalize_map(data: np.ndarray) -> np.ndarray:
     normed = np.copy(data)
     finite_mask = np.isfinite(normed)
@@ -485,6 +495,7 @@ def normalize_map(data: np.ndarray) -> np.ndarray:
         else:
             normed[finite_mask] = 1.0
     return normed
+
 
 def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> bool:
     if not track.is_valid_coordinate((to_state.row, to_state.col)):
@@ -499,7 +510,7 @@ def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> b
         for c in range(min_col - 1, max_col + 2):
             if not track.is_valid_coordinate((r, c)):
                 continue
-            if track.get_cell_type((r, c)) == 'O':
+            if track.is_obstacle[r, c]:
                 if liang_barsky_intersect(c - 0.5,
                                           r - 0.5,
                                           c + 0.5,
@@ -510,8 +521,8 @@ def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> b
                                           to_state.row
                                           ):
                     return True
-
-    if track.get_cell_type(from_state.position()) == 'G':
+    r, c = from_state.position()
+    if track.is_grass[r, c]:
         if abs(from_state.v_row) >= 2 and abs(to_state.v_row) - abs(from_state.v_row) >= 0:
             return True
         if abs(from_state.v_col) >= 2 and abs(to_state.v_col) - abs(from_state.v_col) >= 0:
@@ -525,6 +536,7 @@ def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> b
         return True
 
     return False
+
 
 def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
     # based on https://www.geeksforgeeks.org/liang-barsky-algorithm/
@@ -553,6 +565,7 @@ def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
 
     return True
 
+
 # --- Main execution block (runs on HOST) ---
 
 if __name__ == "__main__":
@@ -561,12 +574,12 @@ if __name__ == "__main__":
     os.makedirs("tracks", exist_ok=True)
     os.makedirs("routes", exist_ok=True)
     os.makedirs("src", exist_ok=True)
-    os.makedirs("visualizations", exist_ok=True) # Host dir for final output
+    os.makedirs("visualizations", exist_ok=True)  # Host dir for final output
 
     example_track_file = "tracks/track_02.t"
     example_route_file = "routes/exampleroute.csv"
     example_perl_script = "src/visualise.pl"
-    example_output_pdf = "visualizations/final_output.pdf" # Different name for clarity
+    example_output_pdf = "visualizations/final_output.pdf"  # Different name for clarity
 
     # --- Actual script logic ---
     print("\n--- Loading and Displaying Track (on Host) ---")
@@ -579,7 +592,7 @@ if __name__ == "__main__":
         trackFilePath=example_track_file,
         routeFilePath=example_route_file,
         outputPdfPath=example_output_pdf,
-        docker_image="tran-optim" # Make sure this image exists and has perl + pdflatex
+        docker_image="tran-optim"  # Make sure this image exists and has perl + pdflatex
     )
 
     print("\n--- Script Finished ---")

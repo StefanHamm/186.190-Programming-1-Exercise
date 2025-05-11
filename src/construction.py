@@ -32,8 +32,7 @@ def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
                     nr, nc = r + dr, c + dc
                     if track.is_valid_coordinate((nr, nc)):
                         total += 1
-                        cell = track.get_cell_type((nr, nc))
-                        if cell != 'O':  # count only non-wall neighbors
+                        if not track.is_obstacle[nr, nc]:  # count only non-wall neighbors
                             free += 1
             if total > 0:
                 narrowness_map[r, c] = free / total * 100
@@ -58,8 +57,7 @@ def precompute_goal_heuristic(track: Track):
             nr, nc = r + dr, c + dc
             if not track.is_valid_coordinate((nr, nc)):
                 continue
-            cell_type = track.get_cell_type((nr, nc))
-            if cell_type == 'O':
+            if track.is_obstacle[nr, nc]:
                 continue
 
             if distance_map[nr, nc] > distance_map[r, c] + 1:
@@ -83,7 +81,7 @@ def get_weight(state: CarState, distance_map: np.ndarray, narrowness_map: np.nda
 
     # TODO: review grass penalty
     grass_penalty = 0.0
-    if track.get_cell_type(state.position()) == 'G':
+    if track.is_grass[state.position()]:
          grass_penalty = 1000000
 
     return alpha * dist + beta_scaled * narrow_penalty + gamma * speed + grass_penalty
@@ -146,7 +144,7 @@ def build_graph(track: Track, start_state: CarState, max_depth,
 
     # print(f"  build_graph: Built graph with {len(g.nodes())} nodes, {len(g.edges())} edges. Explored {len(visited_in_this_build)} states.")
     # TODO: remove after debug
-    draw_graph_on_track(g, track)
+    #draw_graph_on_track(g, track)
     return g
 
 
@@ -206,8 +204,7 @@ def find_best_local_goal(track, graph, current_state, distance_map, narrowness_m
 
         # TODO: review grass penalty
         grass_penalty = 0.0
-        cell_type = track.get_cell_type(node.position())
-        if cell_type == 'G':
+        if track.is_grass[node.position()]:
             grass_penalty = 10.0  # apply strong penalty to discourage grass
 
 
@@ -403,7 +400,7 @@ def combined_heuristic(
     grass_penalty = 1.0
 
     # TODO: review grass penalty
-    if track.get_cell_type(state.position()) == 'G':
+    if track.is_grass[state.position()]:
         grass_penalty = 10
 
     return grass_penalty # alpha * dist + beta_scaled * narrow_penalty + gamma * speed + grass_penalty
