@@ -10,7 +10,7 @@ from src.visualizer import PlotManager,animate_paths_pygame
 import networkx as nx
 import numpy as np
 import argparse
-
+from functools import lru_cache
 from src.state import CarState
 
 visited_global = set()
@@ -38,6 +38,8 @@ def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
                 narrowness_map[r, c] = free / total * 100
 
     return normalize_map(narrowness_map)
+
+
 
 
 def precompute_goal_heuristic(track: Track):
@@ -86,7 +88,11 @@ def get_weight(state: CarState, distance_map: np.ndarray, narrowness_map: np.nda
 
     return alpha * dist + beta_scaled * narrow_penalty + gamma * speed + grass_penalty
     #return alpha * 1-dist
-    
+#g = nx.DiGraph()   
+
+# @lru_cache(maxsize=2048)
+# def move_weight
+
 def build_graph(track: Track, start_state: CarState, max_depth, 
                 narrowness_map, distance_map, alpha, beta, gamma, 
                 max_nodes_to_explore=1000): # Added max_nodes_to_explore (default 1000)
@@ -120,11 +126,22 @@ def build_graph(track: Track, start_state: CarState, max_depth,
 
         for ax in [-1, 0, 1]:
             for ay in [-1, 0, 1]:
+                
+                
+                
+                
                 new_vr = current.v_row + ax
                 new_vc = current.v_col + ay
                 new_r = current.row + new_vr
                 new_c = current.col + new_vc
                 new_state = CarState(new_r, new_c, new_vr, new_vc)
+                
+                # check if edge between current and new state is already in the graph
+                # if g.has_edge(current, new_state):
+                #     queue.append((new_state, depth + 1))
+                #     continue
+                
+                
 
                 if is_invalid_move(track, current, new_state):
                     continue
