@@ -54,8 +54,8 @@ def profile_memory(target: BenchmarkTarget, track_name: str):
 def parse_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--target",
-        type=BenchmarkTarget,
-        choices=list(BenchmarkTarget),
+        type=str,
+        choices=["bfs", "construction"],
         default='construction',
         help="Which benchmark to run"
     )
@@ -76,20 +76,32 @@ def parse_args(parser: argparse.ArgumentParser):
 
     return parser.parse_args()
 
+# parse custom args to worker (child) processes of perf
+def add_custom_args(cmd, args):
+    if args.track:
+        cmd.extend(["--track", args.track])
+    if args.target:
+        cmd.extend(["--target", args.target])
+    if args.depth:
+        cmd.extend(["--depth", str(args.depth)])
+
 if __name__ == "__main__":
-    runner = pyperf.Runner()
+    runner = pyperf.Runner(add_cmdline_args=add_custom_args)
 
     parser = runner.argparser
 
     args = parse_args(parser)
 
+    track_name = args.track
+    target = BenchmarkTarget(args.target)
+
     # Define globals here. When pyperf spawns a worker, it re-runs this script,
     # so these will be available in the worker's global scope for the benchmark functions.
-    track = Track(loadTrack(f"tracks/{args.track}"))
+    track = Track(loadTrack(f"tracks/{track_name}"))
 
-    if args.target == BenchmarkTarget.BFS:
+    if target == BenchmarkTarget.BFS:
         bench = runner.bench_func("bfs", benchmark_bfs)
-    elif args.target == BenchmarkTarget.CONSTRUCTION:
+    elif target == BenchmarkTarget.CONSTRUCTION:
         start = track.getStartCoordinates()
         start_state = CarState(start[0], start[1], 0, 0)
         goals = track.getGoalCoordinates()
@@ -99,18 +111,18 @@ if __name__ == "__main__":
 
         bench = runner.bench_func("construction", benchmark_construction)
     else:
-        raise ValueError(f"{args.target} is not a valid benchmark target")
+        raise ValueError(f"{target} is not a valid benchmark target")
 
     if runner.args.worker:
-        # This is a worker process spawned by pyperf, dont run memory measurement
+        # This is a worker process spawned by pyperf, dont run memory measurement and dont dump results yet
         print("WORKER")
         exit(0)
 
-    perf_dump_file_name = f"benchmark/{args.target}_{args.track}.json"
+    perf_dump_file_name = f"benchmark/{target}_{track_name}.json"
 
     if os.path.exists(perf_dump_file_name):
         os.remove(perf_dump_file_name)
 
     bench.dump(perf_dump_file_name)
 
-    profile_memory(args.target, args.track)
+    profile_memory(target, track_name)
