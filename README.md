@@ -18,8 +18,10 @@ python src/construction.py [OPTIONS]
 Note: If having trouble running benchmark due to module not found error, add current dir to python path: `export PYTHONPATH=.`
 
 ```bash
-python -m src.benchmark [--target {bfs, construction}] [--track TRACK_FILE] [--depth DEPTH]
+python -m src.benchmark [--target {bfs, construction}] [--track TRACK_FILE] [--depth DEPTH] [--values VALUES] [--processes PROCESSES] [--warmups WARMUPS]
 ```
+
+for simple speed up use `--fast`
 
 example usage for track 02, construction with depth 3:
 
