@@ -10,6 +10,7 @@ from src.state import CarState
 from memory_profiler import memory_usage
 from enum import Enum
 import argparse
+import json
 
 class BenchmarkTarget(Enum):
     BFS = "bfs"
@@ -40,7 +41,7 @@ def benchmark_construction():
 
 def profile_memory(target: BenchmarkTarget, track_name: str):
     # Memory profiling
-    memory_usage_file_name = f"benchmark/{target}_memory_{track_name}.json"
+    memory_usage_file_name = f"benchmark/memory/{target}_memory_{track_name}"
 
     if target == BenchmarkTarget.BFS:
         mem_usage = memory_usage((bfs_racetrack, (track,)), interval=0.1)
@@ -50,6 +51,8 @@ def profile_memory(target: BenchmarkTarget, track_name: str):
     with open(memory_usage_file_name, "w") as f:
         for entry in mem_usage:
             f.write(f"{entry}\n")
+
+    return mem_usage
 
 def parse_args(parser: argparse.ArgumentParser):
     parser.add_argument(
@@ -127,4 +130,23 @@ if __name__ == "__main__":
 
     bench.dump(perf_dump_file_name)
 
-    profile_memory(target, track_name)
+    with open(perf_dump_file_name, "r") as f:
+        data = json.load(f)
+
+
+    data["metadata"]["mean"] = bench.mean()
+    data["metadata"]["stdev"] = bench.stdev()
+    data["metadata"]["median"] = bench.median()
+    data["metadata"]["median_abs_dev"] = bench.median_abs_dev()
+
+    mem_usage = profile_memory(target, track_name)
+
+    data["metadata"]["memory"] = {}
+    data["metadata"]["memory"]["min"] = min(mem_usage)
+    data["metadata"]["memory"]["max"] = max(mem_usage)
+    data["metadata"]["memory"]["usage"] = max(mem_usage) - min(mem_usage)
+
+
+    with open(perf_dump_file_name, "w") as f:
+        json.dump(data, f, indent=2)
+
