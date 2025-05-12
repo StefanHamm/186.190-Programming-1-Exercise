@@ -36,7 +36,7 @@ def benchmark_bfs():
 
 def benchmark_construction():
     # These globals will be defined in the __main__ block when pyperf runs the worker
-    solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, visualize=False, parameters=None)
+    solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, visualize=False, parameters=parameters)
 
 def profile_memory(target: BenchmarkTarget, track_name: str):
     # Memory profiling
@@ -108,6 +108,9 @@ if __name__ == "__main__":
         distance_map = precompute_goal_heuristic(track)
         narrowness_map = compute_narrowness_map(track)
         depth = args.depth
+
+        # TODO: change if needed
+        parameters = [2, 0, 0]
 
         bench = runner.bench_func("construction", benchmark_construction)
     else:
