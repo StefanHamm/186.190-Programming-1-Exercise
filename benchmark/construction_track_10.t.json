@@ -1,0 +1,248 @@
+{
+  "benchmarks": [
+    {
+      "runs": [
+        {
+          "metadata": {
+            "calibrate_loops": 1,
+            "date": "2025-05-12 15:31:15.981367",
+            "duration": 14.977098500006832,
+            "load_avg_1min": 2.3173828125,
+            "mem_max_rss": 284642246656,
+            "uptime": 2006819.9935948849
+          },
+          "warmups": [
+            [
+              1,
+              6.011935084010474
+            ],
+            [
+              1,
+              4.416623333003372
+            ],
+            [
+              1,
+              4.528904875041917
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:31:31.754970",
+            "duration": 14.972257334040478,
+            "load_avg_1min": 2.484375,
+            "mem_max_rss": 285732765696,
+            "uptime": 2006835.7674219608
+          },
+          "values": [
+            4.446492332965136,
+            4.521602208027616
+          ],
+          "warmups": [
+            [
+              1,
+              5.984179708990268
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:31:47.734450",
+            "duration": 15.17818150005769,
+            "load_avg_1min": 2.2353515625,
+            "mem_max_rss": 284155707392,
+            "uptime": 2006851.7478678226
+          },
+          "values": [
+            4.507064417004585,
+            4.618438666919246
+          ],
+          "warmups": [
+            [
+              1,
+              6.0309321670793
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:32:03.763712",
+            "duration": 15.094967250013724,
+            "load_avg_1min": 2.041015625,
+            "mem_max_rss": 284440920064,
+            "uptime": 2006867.7765939236
+          },
+          "values": [
+            4.471738000051118,
+            4.576074665994383
+          ],
+          "warmups": [
+            [
+              1,
+              6.025759165990166
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:32:19.754583",
+            "duration": 15.061497624963522,
+            "load_avg_1min": 5.1923828125,
+            "mem_max_rss": 284357033984,
+            "uptime": 2006883.7678689957
+          },
+          "values": [
+            4.515524749993347,
+            4.518779582926072
+          ],
+          "warmups": [
+            [
+              1,
+              6.0055223340168595
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:32:35.584997",
+            "duration": 14.902578791952692,
+            "load_avg_1min": 4.26318359375,
+            "mem_max_rss": 284071821312,
+            "uptime": 2006899.5971808434
+          },
+          "values": [
+            4.404067791998386,
+            4.521928124944679
+          ],
+          "warmups": [
+            [
+              1,
+              5.957029499928467
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:32:51.421474",
+            "duration": 15.01525658403989,
+            "load_avg_1min": 4.04345703125,
+            "mem_max_rss": 282108887040,
+            "uptime": 2006915.4332449436
+          },
+          "values": [
+            4.439986290992238,
+            4.5309185000369325
+          ],
+          "warmups": [
+            [
+              1,
+              6.024212958058342
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:33:07.340611",
+            "duration": 15.09902554191649,
+            "load_avg_1min": 3.8251953125,
+            "mem_max_rss": 283451064320,
+            "uptime": 2006931.3531188965
+          },
+          "values": [
+            4.428037625038996,
+            4.589373208000325
+          ],
+          "warmups": [
+            [
+              1,
+              6.060700792004354
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:33:23.454233",
+            "duration": 15.250536375096999,
+            "load_avg_1min": 3.43896484375,
+            "mem_max_rss": 289255981056,
+            "uptime": 2006947.4669811726
+          },
+          "values": [
+            4.446588334045373,
+            4.634466625051573
+          ],
+          "warmups": [
+            [
+              1,
+              6.148137790965848
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:33:39.341984",
+            "duration": 15.027454833034426,
+            "load_avg_1min": 3.26171875,
+            "mem_max_rss": 284877127680,
+            "uptime": 2006963.3538870811
+          },
+          "values": [
+            4.422837874968536,
+            4.515038541983813
+          ],
+          "warmups": [
+            [
+              1,
+              6.0702672090847045
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-12 15:33:55.259527",
+            "duration": 15.100365458987653,
+            "load_avg_1min": 2.9873046875,
+            "mem_max_rss": 284138930176,
+            "uptime": 2006979.2732710838
+          },
+          "values": [
+            4.449002124951221,
+            4.590118792024441
+          ],
+          "warmups": [
+            [
+              1,
+              6.039471457945183
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "boot_time": "2025-04-19 10:04:16",
+    "cpu_count": 12,
+    "hostname": "Mac.localdomain",
+    "loops": 1,
+    "name": "construction",
+    "perf_version": "2.6.2",
+    "platform": "macOS-15.4.1-arm64-arm-64bit",
+    "python_cflags": "-Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /opt/homebrew/anaconda3/envs/tran-optim/include -arch arm64 -fPIC -O2 -isystem /opt/homebrew/anaconda3/envs/tran-optim/include -arch arm64",
+    "python_compiler": "Clang 18.1.8",
+    "python_executable": "/opt/homebrew/anaconda3/envs/tran-optim/bin/python",
+    "python_implementation": "cpython",
+    "python_version": "3.10.17 (64-bit)",
+    "timer": "mach_absolute_time(), resolution: 41.7 ns",
+    "unit": "second",
+    "mean": 4.507403922895901,
+    "stdev": 0.06833923453197342,
+    "median": 4.51528164598858,
+    "median_abs_dev": 0.06748641649028286,
+    "memory": {
+      "min": 51.921875,
+      "max": 240.75,
+      "usage": 188.828125
+    }
+  },
+  "version": "1.0"
+}
