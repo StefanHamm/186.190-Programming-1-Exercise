@@ -11,6 +11,7 @@ import numpy as np
 import argparse
 from functools import lru_cache
 from src.state import CarState
+import heapq
 
 plot_manager = PlotManager()  # Initialize the PlotManager
 
@@ -43,16 +44,23 @@ def compute_narrowness_map(track: Track, radius: int = 1) -> np.ndarray:
 def precompute_goal_heuristic(track: Track):
     distance_map = np.full((track.rows, track.cols), np.inf)
     goals = track.getGoalCoordinates()
-    queue = deque()
+    visited = np.zeros((track.rows, track.cols), dtype=bool)
+
+    heap = []
 
     for r, c in goals:
         distance_map[r, c] = 0
-        queue.append((r, c))
+        heapq.heappush(heap, (0, r, c))
 
     directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-    while queue:
-        r, c = queue.popleft()
+    while heap:
+        dist, r, c = heapq.heappop(heap)
+
+        if visited[r, c]:
+            continue
+        visited[r, c] = True
+
         for dr, dc in directions:
             nr, nc = r + dr, c + dc
             if not track.is_valid_coordinate((nr, nc)):
@@ -60,9 +68,10 @@ def precompute_goal_heuristic(track: Track):
             if track.is_obstacle[nr, nc]:
                 continue
 
-            if distance_map[nr, nc] > distance_map[r, c] + 1:
-                distance_map[nr, nc] = distance_map[r, c] + 1
-                queue.append((nr, nc))
+            new_dist = dist + 1  # or use a different cost function if needed
+            if new_dist < distance_map[nr, nc]:
+                distance_map[nr, nc] = new_dist
+                heapq.heappush(heap, (new_dist, nr, nc))
 
     return normalize_map(distance_map)
 
@@ -355,7 +364,7 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
         if consecutive_step_failures >= MAX_CONSECUTIVE_STEP_FAILURES:
             print(f"  Max consecutive step failures reached. Attempting recovery (backtrack & depth increase).")
             
-            state_before_recovery = current_state 
+            state_before_recovery = current_state
 
             # Backtrack logic (adapted from your existing code)
             if len(full_path) > BACKTRACK_STEPS:
