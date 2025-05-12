@@ -115,7 +115,6 @@ if __name__ == "__main__":
 
     if runner.args.worker:
         # This is a worker process spawned by pyperf, dont run memory measurement and dont dump results yet
-        print("WORKER")
         exit(0)
 
     perf_dump_file_name = f"benchmark/{target}_{track_name}.json"
