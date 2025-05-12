@@ -115,10 +115,15 @@ def main():
 import cProfile
 import os
 if __name__ == "__main__":
-    profile_file = "profile.out"
-    cProfile.run('main()', profile_file)
+    profiler = False
+    
+    if profiler:
+        profile_file = "profile.out"
+        cProfile.run('main()', profile_file)
 
-    # Automatically launch snakeviz
-    os.system(f"snakeviz {profile_file}")
+        # Automatically launch snakeviz
+        os.system(f"snakeviz {profile_file}")
+    else:
+        main()
         
         

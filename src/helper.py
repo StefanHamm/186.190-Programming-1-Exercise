@@ -8,9 +8,10 @@ import shutil
 
 from src.state import CarState
 
+from functools import lru_cache
 
 # --- Functions running on the HOST ---
-
+chsize =256000
 class Track:
     def __init__(self, track: np.ndarray):
         """
@@ -84,7 +85,7 @@ class Track:
         point2 = np.array(coord2)
         # Calculate Euclidean distance
         return np.linalg.norm(point1 - point2)
-
+    @lru_cache(maxsize=chsize)
     def is_valid_coordinate(self, coord: tuple[int, int]) -> bool:
         """Checks if a coordinate (row, col) is within the track bounds."""
         row, col = coord
@@ -497,6 +498,7 @@ def normalize_map(data: np.ndarray) -> np.ndarray:
     return normed
 
 
+@lru_cache(maxsize=chsize)
 def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> bool:
     if not track.is_valid_coordinate((to_state.row, to_state.col)):
         return True
@@ -537,7 +539,7 @@ def is_invalid_move(track: Track, from_state: CarState, to_state: CarState) -> b
 
     return False
 
-
+@lru_cache(maxsize=chsize)
 def liang_barsky_intersect(x_min, y_min, x_max, y_max, x1, y1, x2, y2):
     # based on https://www.geeksforgeeks.org/liang-barsky-algorithm/
     dx = x2 - x1
