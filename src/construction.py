@@ -4,8 +4,7 @@ from collections import deque
 from matplotlib import pyplot as plt
 
 from src.helper import loadTrack, run_visualization_in_docker, Track
-from src.helper import bresenham_line, normalize_map,is_invalid_move
-from src.visualizer import draw_graph_on_track
+from src.helper import normalize_map,is_invalid_move
 from src.visualizer import PlotManager,animate_paths_pygame
 import networkx as nx
 import numpy as np
@@ -13,7 +12,6 @@ import argparse
 from functools import lru_cache
 from src.state import CarState
 
-visited_global = set()
 plot_manager = PlotManager()  # Initialize the PlotManager
 
 
@@ -289,9 +287,9 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
         if timestep > MAX_TOTAL_TIMESTEPS: # Adjusted timeout
             print(f"Timeout reached ({MAX_TOTAL_TIMESTEPS} timesteps). Aborting.")
             return full_path,pathOfPaths, PathFindingStatus.ABORTING
-        
+
         #print(f"T{timestep}: CS={current_state}, OpDepth={current_operative_depth}, StepFails={consecutive_step_failures}/{MAX_CONSECUTIVE_STEP_FAILURES}")
-        
+
         graph = build_graph(track, current_state, current_operative_depth, narrowness_map, distance_map, alpha, beta, gamma, max_nodes_to_explore=1000 + current_operative_depth * 200) # Slightly more budget for deeper graphs
 
         if visualize and plot_manager:
@@ -352,15 +350,13 @@ def solve_chunked_astar(track: Track, start_state: CarState, goals: list[tuple[i
 
         # --- If code reaches here, a failure occurred in planning this step ---
         consecutive_step_failures += 1
-        visited_global.clear()
         print(f"  Step failed. Consecutive step failures: {consecutive_step_failures}/{MAX_CONSECUTIVE_STEP_FAILURES}.")
 
         if consecutive_step_failures >= MAX_CONSECUTIVE_STEP_FAILURES:
             print(f"  Max consecutive step failures reached. Attempting recovery (backtrack & depth increase).")
             
             state_before_recovery = current_state 
-            #clear gloabal visited set
-            
+
             # Backtrack logic (adapted from your existing code)
             if len(full_path) > BACKTRACK_STEPS:
                 print(f"  Backtracking {BACKTRACK_STEPS} steps from path of length {len(full_path)}.")
