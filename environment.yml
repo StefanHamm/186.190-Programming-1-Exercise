@@ -12,4 +12,5 @@ dependencies:
   - tqdm
   - pandas
   - pyperf
-  - snakeviz 
+  - snakeviz
+  - memory_profiler

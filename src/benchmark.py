@@ -1,27 +1,4 @@
 import os
-import tempfile
-import shutil
-import atexit
-
-# --- START FIX ---
-# Create a temporary directory for matplotlib's config
-# This needs to happen BEFORE matplotlib is imported by any of your modules.
-# The temp directory will be automatically cleaned up on program exit.
-try:
-    # Create a temporary directory for matplotlib's config
-    mpl_config_dir = tempfile.mkdtemp(prefix="mpl_config_")
-    os.environ['MPLCONFIGDIR'] = mpl_config_dir
-
-    # Ensure the temporary directory is cleaned up when the script exits
-    def cleanup_mpl_config():
-        if os.path.exists(mpl_config_dir):
-            shutil.rmtree(mpl_config_dir)
-            # print(f"Cleaned up MPLCONFIGDIR: {mpl_config_dir}") # Optional: for debugging
-
-    atexit.register(cleanup_mpl_config)
-except Exception as e:
-    print(f"Warning: Could not set up temporary MPLCONFIGDIR: {e}")
-# --- END FIX ---
 
 import pyperf
 
@@ -30,6 +7,16 @@ from src.helper import Track, loadTrack
 from src.bfs import bfs_racetrack # This will import src.construction, which imports matplotlib
 from src.construction import solve_chunked_astar, precompute_goal_heuristic, compute_narrowness_map
 from src.state import CarState
+from memory_profiler import memory_usage
+from enum import Enum
+import argparse
+
+class BenchmarkTarget(Enum):
+    BFS = "bfs"
+    CONSTRUCTION = "construction"
+
+    def __str__(self):
+        return self.value
 
 # Global variables for benchmark functions - define them before the functions
 # if they are needed at function definition time (not strictly here, but good practice)
@@ -51,19 +38,79 @@ def benchmark_construction():
     # These globals will be defined in the __main__ block when pyperf runs the worker
     solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, visualize=False, parameters=None)
 
+def profile_memory(target: BenchmarkTarget, track_name: str):
+    # Memory profiling
+    memory_usage_file_name = f"benchmark/{target}_memory_{track_name}.json"
+
+    if target == BenchmarkTarget.BFS:
+        mem_usage = memory_usage((bfs_racetrack, (track,)), interval=0.1)
+    elif target == BenchmarkTarget.CONSTRUCTION:
+        mem_usage = memory_usage((solve_chunked_astar, (track, start_state, goals, distance_map, narrowness_map, depth, False, None,)), interval=0.1)
+
+    with open(memory_usage_file_name, "w") as f:
+        for entry in mem_usage:
+            f.write(f"{entry}\n")
+
+def parse_args(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "--target",
+        type=BenchmarkTarget,
+        choices=list(BenchmarkTarget),
+        default='construction',
+        help="Which benchmark to run"
+    )
+
+    parser.add_argument(
+        "--depth",
+        type=int,
+        default=3,
+        help="Depth parameter for construction benchmark (only used when target=construction"
+    )
+
+    parser.add_argument(
+        "--track",
+        type=str,
+        default="track_02.t",
+        help="Track file name inside 'tracks' directory (default: track_02.t)"
+    )
+
+    return parser.parse_args()
+
 if __name__ == "__main__":
+    runner = pyperf.Runner()
+
+    parser = runner.argparser
+
+    args = parse_args(parser)
+
     # Define globals here. When pyperf spawns a worker, it re-runs this script,
     # so these will be available in the worker's global scope for the benchmark functions.
-    track = Track(loadTrack("tracks/track_02.t"))
-    start = track.getStartCoordinates()
-    start_state = CarState(start[0], start[1], 0, 0)
-    goals = track.getGoalCoordinates()
-    distance_map = precompute_goal_heuristic(track)
-    narrowness_map = compute_narrowness_map(track)
-    depth = 3
+    track = Track(loadTrack(f"tracks/{args.track}"))
 
-    runner = pyperf.Runner()
-    # The functions benchmark_bfs and benchmark_construction will be called
-    # by pyperf, and they will pick up the global variables defined above.
-    #runner.bench_func("bfs", benchmark_bfs)
-    runner.bench_func("construction", benchmark_construction)
+    if args.target == BenchmarkTarget.BFS:
+        bench = runner.bench_func("bfs", benchmark_bfs)
+    elif args.target == BenchmarkTarget.CONSTRUCTION:
+        start = track.getStartCoordinates()
+        start_state = CarState(start[0], start[1], 0, 0)
+        goals = track.getGoalCoordinates()
+        distance_map = precompute_goal_heuristic(track)
+        narrowness_map = compute_narrowness_map(track)
+        depth = args.depth
+
+        bench = runner.bench_func("construction", benchmark_construction)
+    else:
+        raise ValueError(f"{args.target} is not a valid benchmark target")
+
+    if runner.args.worker:
+        # This is a worker process spawned by pyperf, dont run memory measurement
+        print("WORKER")
+        exit(0)
+
+    perf_dump_file_name = f"benchmark/{args.target}_{args.track}.json"
+
+    if os.path.exists(perf_dump_file_name):
+        os.remove(perf_dump_file_name)
+
+    bench.dump(perf_dump_file_name)
+
+    profile_memory(args.target, args.track)
