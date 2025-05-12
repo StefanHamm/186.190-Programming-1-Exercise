@@ -13,6 +13,21 @@ python src/construction.py [OPTIONS]
 | -v or --visualize | Enable graphical visualization   | Disabled          |
  | -d or --d         | Maximum depth for graph builidng | 1                 |
 
+# Benchmarking
+
+Note: If having trouble running benchmark due to module not found error, add current dir to python path: `export PYTHONPATH=.`
+
+```bash
+python -m src.benchmark [--target {bfs, construction}] [--track TRACK_FILE] [--depth DEPTH]
+```
+
+example usage for track 02, construction with depth 3:
+
+```bash
+python -m src.benchmark --target construction --track track_02.t --depth 3
+```
+
+solution files are dumped to benchmark dir
 
 # Creating conda environment
 ```bash
