@@ -7,7 +7,7 @@ for i in {2..10}; do
   else
     track="track_${i}.t"
   fi
-  python -m src.benchmark --target construction --track ${track} --depth 3
+  python -m src.benchmark --target construction --track ${track} --depth 3 --fast
 done
 
 # run bfs benchmarks
@@ -17,6 +17,6 @@ for i in {2..10}; do
   else
     track="track_${i}.t"
   fi
-  python -m src.benchmark --target bfs --track ${track}
+  python -m src.benchmark --target bfs --track ${track} --fast
 done
 
