@@ -1,1 +1,249 @@
-{"benchmarks":[{"runs":[{"metadata":{"calibrate_loops":1,"date":"2025-05-13 13:07:56.062973","duration":24.514260124997236,"load_avg_1min":5.6611328125,"mem_max_rss":332490866688,"uptime":2084620.075483799},"warmups":[[1,8.054660042049363],[1,7.971268166904338],[1,8.467782041989267]]},{"metadata":{"date":"2025-05-13 13:08:23.174929","duration":26.013657375006005,"load_avg_1min":7.2255859375,"mem_max_rss":329286418432,"uptime":2084647.1875720024},"values":[8.606210374971852,9.274957666988485],"warmups":[[1,8.111392125021666]]},{"metadata":{"date":"2025-05-13 13:08:51.117875","duration":26.501526582986116,"load_avg_1min":7.009765625,"mem_max_rss":326736281600,"uptime":2084675.1327140331},"values":[8.592641875031404,9.47121975000482],"warmups":[[1,8.413829292054288]]},{"metadata":{"date":"2025-05-13 13:09:19.896005","duration":27.460347624961287,"load_avg_1min":7.765625,"mem_max_rss":329403858944,"uptime":2084703.9084501266},"values":[8.793746624956839,10.199577709077857],"warmups":[[1,8.447032624972053]]},{"metadata":{"date":"2025-05-13 13:09:47.256961","duration":26.076378584024496,"load_avg_1min":6.28515625,"mem_max_rss":331148689408,"uptime":2084731.2700312138},"values":[8.541439875029027,9.117911166045815],"warmups":[[1,8.395862375036813]]},{"metadata":{"date":"2025-05-13 13:10:13.505868","duration":25.05267229198944,"load_avg_1min":5.470703125,"mem_max_rss":330041393152,"uptime":2084757.5177850723},"values":[8.19568733300548,8.841859792009927],"warmups":[[1,7.996113457949832]]},{"metadata":{"date":"2025-05-13 13:10:39.281669","duration":24.69148929102812,"load_avg_1min":4.57666015625,"mem_max_rss":331081580544,"uptime":2084783.2935621738},"values":[8.009561290964484,8.694088875083253],"warmups":[[1,7.968887666007504]]},{"metadata":{"date":"2025-05-13 13:11:05.618484","duration":25.26047729095444,"load_avg_1min":3.83203125,"mem_max_rss":328950874112,"uptime":2084809.630092144},"values":[8.252775750006549,8.77695012500044],"warmups":[[1,8.212075583054684]]},{"metadata":{"date":"2025-05-13 13:11:31.303309","duration":24.534169333055615,"load_avg_1min":3.43359375,"mem_max_rss":331098357760,"uptime":2084835.3151390553},"values":[8.081016124924645,8.642015416990034],"warmups":[[1,7.792228667065501]]},{"metadata":{"date":"2025-05-13 13:11:57.233631","duration":24.847734500071965,"load_avg_1min":3.42724609375,"mem_max_rss":328967651328,"uptime":2084861.2455050945},"values":[8.137559375027195,8.825694792089052],"warmups":[[1,7.865466583985835]]},{"metadata":{"date":"2025-05-13 13:12:23.514067","duration":25.192159875063226,"load_avg_1min":3.439453125,"mem_max_rss":328195899392,"uptime":2084887.5258700848},"values":[8.099626082926989,9.14660287508741],"warmups":[[1,7.926962084020488]]}]}],"metadata":{"boot_time":"2025-04-19 10:04:16","cpu_count":12,"hostname":"Andis-MacBook-Pro.local","loops":1,"name":"construction","perf_version":"2.6.2","platform":"macOS-15.4.1-arm64-arm-64bit","python_cflags":"-Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /opt/homebrew/anaconda3/envs/tran-optim/include -arch arm64 -fPIC -O2 -isystem /opt/homebrew/anaconda3/envs/tran-optim/include -arch arm64","python_compiler":"Clang 18.1.8","python_executable":"/opt/homebrew/anaconda3/envs/tran-optim/bin/python","python_implementation":"cpython","python_version":"3.10.17 (64-bit)","timer":"mach_absolute_time(), resolution: 41.7 ns","unit":"second"},"version":"1.0"}
+{
+  "benchmarks": [
+    {
+      "runs": [
+        {
+          "metadata": {
+            "calibrate_loops": 1,
+            "date": "2025-05-13 14:00:18.986600",
+            "duration": 25.176250250078738,
+            "load_avg_1min": 2.66259765625,
+            "mem_max_rss": 326786613248,
+            "uptime": 2087763.0004570484
+          },
+          "warmups": [
+            [
+              1,
+              7.9234564589569345
+            ],
+            [
+              1,
+              8.373237750027329
+            ],
+            [
+              1,
+              8.857525959028862
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:00:45.702617",
+            "duration": 25.576168125029653,
+            "load_avg_1min": 2.65478515625,
+            "mem_max_rss": 327273152512,
+            "uptime": 2087789.7144739628
+          },
+          "values": [
+            8.288681915961206,
+            9.281481457990594
+          ],
+          "warmups": [
+            [
+              1,
+              7.986909958999604
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:01:12.437388",
+            "duration": 25.589197124936618,
+            "load_avg_1min": 2.70849609375,
+            "mem_max_rss": 331803000832,
+            "uptime": 2087816.4486629963
+          },
+          "values": [
+            8.409914167015813,
+            9.20594645908568
+          ],
+          "warmups": [
+            [
+              1,
+              7.955117707955651
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:01:39.492056",
+            "duration": 25.955233999993652,
+            "load_avg_1min": 4.0068359375,
+            "mem_max_rss": 330813145088,
+            "uptime": 2087843.5036580563
+          },
+          "values": [
+            8.273189625004306,
+            9.12506916699931
+          ],
+          "warmups": [
+            [
+              1,
+              8.538440292002633
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:02:06.172073",
+            "duration": 25.571505874977447,
+            "load_avg_1min": 3.611328125,
+            "mem_max_rss": 331115134976,
+            "uptime": 2087870.18573308
+          },
+          "values": [
+            8.409646666026674,
+            8.978462959057651
+          ],
+          "warmups": [
+            [
+              1,
+              8.161650374997407
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:02:33.338733",
+            "duration": 26.01711391704157,
+            "load_avg_1min": 2.91552734375,
+            "mem_max_rss": 333229064192,
+            "uptime": 2087897.3509640694
+          },
+          "values": [
+            8.603672208962962,
+            9.06083504203707
+          ],
+          "warmups": [
+            [
+              1,
+              8.333194833016023
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:03:00.350838",
+            "duration": 25.83794470806606,
+            "load_avg_1min": 2.7978515625,
+            "mem_max_rss": 327994572800,
+            "uptime": 2087924.3629817963
+          },
+          "values": [
+            8.314792250050232,
+            9.338830542052165
+          ],
+          "warmups": [
+            [
+              1,
+              8.16511891700793
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:03:27.343237",
+            "duration": 25.773496249923483,
+            "load_avg_1min": 3.07958984375,
+            "mem_max_rss": 327222820864,
+            "uptime": 2087951.3548841476
+          },
+          "values": [
+            8.386161708040163,
+            9.221703374991193
+          ],
+          "warmups": [
+            [
+              1,
+              8.146905875066295
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:03:54.633003",
+            "duration": 26.198995125014335,
+            "load_avg_1min": 2.66015625,
+            "mem_max_rss": 326316851200,
+            "uptime": 2087978.645457983
+          },
+          "values": [
+            8.549562208005227,
+            9.304179041995667
+          ],
+          "warmups": [
+            [
+              1,
+              8.325143333990127
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:04:22.066903",
+            "duration": 26.286092375055887,
+            "load_avg_1min": 2.466796875,
+            "mem_max_rss": 330343383040,
+            "uptime": 2088006.0790550709
+          },
+          "values": [
+            8.640321459039114,
+            9.386893625021912
+          ],
+          "warmups": [
+            [
+              1,
+              8.239430250017904
+            ]
+          ]
+        },
+        {
+          "metadata": {
+            "date": "2025-05-13 14:04:49.306688",
+            "duration": 26.093610833981074,
+            "load_avg_1min": 2.63623046875,
+            "mem_max_rss": 332054659072,
+            "uptime": 2088033.3206090927
+          },
+          "values": [
+            8.446854832931422,
+            9.092169790994376
+          ],
+          "warmups": [
+            [
+              1,
+              8.53269529202953
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "boot_time": "2025-04-19 10:04:16",
+    "cpu_count": 12,
+    "hostname": "Andis-MacBook-Pro.local",
+    "loops": 1,
+    "name": "construction",
+    "perf_version": "2.6.2",
+    "platform": "macOS-15.4.1-arm64-arm-64bit",
+    "python_cflags": "-Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /opt/homebrew/anaconda3/envs/tran-optim/include -arch arm64 -fPIC -O2 -isystem /opt/homebrew/anaconda3/envs/tran-optim/include -arch arm64",
+    "python_compiler": "Clang 18.1.8",
+    "python_executable": "/opt/homebrew/anaconda3/envs/tran-optim/bin/python",
+    "python_implementation": "cpython",
+    "python_version": "3.10.17 (64-bit)",
+    "timer": "mach_absolute_time(), resolution: 41.7 ns",
+    "unit": "second",
+    "mean": 8.815918425063137,
+    "stdev": 0.4136460463013213,
+    "median": 8.809392209048383,
+    "median_abs_dev": 0.3996117925271392,
+    "memory": {
+      "min": 86.984375,
+      "max": 278.25,
+      "usage": 191.265625
+    },
+    "path_steps": 53
+  },
+  "version": "1.0"
+}
