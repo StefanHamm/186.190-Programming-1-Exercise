@@ -2,7 +2,7 @@ import os
 
 import pyperf
 
-from src.helper import Track, loadTrack
+from src.helper import Track, loadTrack, run_visualization_in_docker
 from src.bfs import bfs_racetrack
 from src.construction import solve_chunked_astar, precompute_goal_heuristic
 from src.state import CarState
@@ -50,10 +50,24 @@ def get_path_steps(target: BenchmarkTarget) -> int:
         full_path, _, _ = solve_chunked_astar(track, start_state, goals, distance_map, depth, False, alpha)
 
     path_file_name = f"benchmark/path/{target}_path_{track_name}"
+    csv_output_file_name = f"benchmark/path/{target}_path_{track_name}.csv"
+    docker_visualization_output_name = f"benchmark/path/{target}_path_{track_name}.pdf"
 
     with open(path_file_name, "w") as f:
         for entry in full_path:
             f.write(f"{entry}\n")
+
+    with open(csv_output_file_name, 'w', newline="\n") as f:
+        for state in full_path:
+            # adjust for different origins
+            transformed_row = track.rows - 1 - state.row
+            f.write(f"{state.col},{transformed_row}\n")
+
+    run_visualization_in_docker(
+        trackFilePath=f"tracks/{track_name}",
+        routeFilePath=csv_output_file_name,
+        outputPdfPath=docker_visualization_output_name
+    )
 
     return len(full_path) - 1 # -1 because the start state is no step
 
