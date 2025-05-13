@@ -117,10 +117,59 @@ def plot_memory_comparison(labels, bfs_mem, cons_mem, output_path):
     print(f"✅ Memory plot saved to {output_path}")
     plt.close()
 
+def plot_runtime_scaling(labels, bfs_means, construction_means, output_path):
+    plt.figure(figsize=(12, 6))
+    plt.plot(labels, bfs_means, marker='o', label="BFS", color="skyblue")
+    plt.plot(labels, construction_means, marker='o', label="Construction", color="salmon")
+
+    plt.title("Runtime Scaling Across Tracks")
+    plt.xlabel("Track ID")
+    plt.ylabel("Mean Runtime (seconds)")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path)
+    print(f"✅ Runtime scaling plot saved to {output_path}")
+    plt.close()
+
+def plot_speedup_factor(labels, bfs_means, construction_means, output_path):
+    speedups = []
+    for b, c in zip(bfs_means, construction_means):
+        if b is not None and c is not None and c > 0:
+            speedups.append(b / c)
+        else:
+            speedups.append(0)
+
+    x = range(len(labels))
+    plt.figure(figsize=(12, 6))
+    plt.bar(x, speedups, color="mediumseagreen")
+    plt.xticks(x, labels)
+    plt.ylabel("Speedup Factor (BFS / Construction)")
+    plt.title("Speedup of Construction over BFS per Track")
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path)
+    print(f"✅ Speedup plot saved to {output_path}")
+    plt.close()
+
 if __name__ == "__main__":
     tracks = range(2, 11)
     labels, bfs, construction = load_mean_times(tracks)
     plot_comparison(labels, bfs, construction, output_path="benchmark/plots/runtime_comparison.png")
+
+    plot_runtime_scaling(
+        labels, bfs, construction,
+        output_path="benchmark/plots/runtime_scaling.png"
+    )
+
+    plot_speedup_factor(
+        labels, bfs, construction,
+        output_path="benchmark/plots/speedup_factor.png"
+    )
 
     labels, bfs_mem, construction_mem = load_memory_usage(tracks)
     plot_memory_comparison(labels, bfs_mem, construction_mem, output_path="benchmark/plots/memory_comparison.png")
