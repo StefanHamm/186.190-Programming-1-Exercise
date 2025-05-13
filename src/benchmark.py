@@ -55,7 +55,7 @@ def get_path_steps(target: BenchmarkTarget) -> int:
         for entry in full_path:
             f.write(f"{entry}\n")
 
-    return len(full_path)
+    return len(full_path) - 1 # -1 because the start state is no step
 
 def parse_args(parser: argparse.ArgumentParser):
     parser.add_argument(
