@@ -5,7 +5,7 @@ import sys
 import platform
 import shlex  # For safer command string joining/splitting
 import shutil
-
+import pandas as pd
 from src.state import CarState
 
 from functools import lru_cache
@@ -117,6 +117,131 @@ class Track:
         if self.is_valid_coordinate((row, col + 1)):
             neighbours.append(self.track[row, col + 1])
         return neighbours
+    
+        
+    def getBrushedTrack(self, pathFile: str, brushSize: int = 4) -> 'Track':
+        """
+        Creates a new track by "painting" along a given path with a specified brush size.
+        Assumes pathFile CSV format is: column_index, row_index_from_bottom.
+
+        Args:
+            pathFile (str): Path to CSV: col_idx,row_idx_from_bottom (e.g., "X,Y_cartesian").
+            brushSize (int): Side length of the square brush. Must be 1 or greater.
+
+        Returns:
+            Track: A new Track object with the brushed track.
+        """
+        if brushSize < 1:
+            raise ValueError("brushSize must be 1 or greater.")
+
+        # 1. Load path from pathFile
+        try:
+            path_df = pd.read_csv(pathFile, header=None, comment='#')
+            if path_df.shape[1] < 2:
+                 raise ValueError("Path file must have at least two columns for column and row.")
+            
+            path_coords = []
+            for _, row_data in path_df.iterrows():
+                # CSV format is assumed to be: X (column), Y (row_from_bottom)
+                # row_data.iloc[0] is X (column index)
+                # row_data.iloc[1] is Y (row index, 0 at bottom, increasing upwards)
+                
+                col_from_csv = int(row_data.iloc[0])
+                row_from_bottom_csv = int(row_data.iloc[1])
+
+                # Convert row_from_bottom_csv to NumPy standard row index (0 at top)
+                # self.rows is the total number of rows. Max index is self.rows - 1.
+                # If row_from_bottom_csv is 0, numpy_row = self.rows - 1.
+                # If row_from_bottom_csv is self.rows - 1, numpy_row = 0.
+                numpy_standard_row = (self.rows - 1) - row_from_bottom_csv
+                
+                # Store coordinates in (numpy_standard_row, col_from_csv) format
+                path_coords.append((numpy_standard_row, col_from_csv))
+
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Path file {pathFile} not found.")
+        except pd.errors.EmptyDataError:
+            path_coords = []
+        except Exception as e:
+            raise ValueError(f"Error reading or parsing path file {pathFile}: {e}")
+
+        brushed_track_arr = np.full(self.track.shape, fill_value='O', dtype=self.track.dtype)
+
+        if not path_coords:
+            return Track(brushed_track_arr)
+
+        all_brushed_centers = set()
+
+        def _apply_brush_at_point(r_center: int, c_center: int):
+            # r_center, c_center are now standard NumPy coordinates
+            if (r_center, c_center) in all_brushed_centers:
+                return
+            
+            if not self.is_valid_coordinate((r_center, c_center)): # Checks bounds using NumPy coords
+                return
+            
+            all_brushed_centers.add((r_center, c_center))
+
+            start_offset = -((brushSize - 1) // 2)
+            end_offset = (brushSize // 2) 
+            
+            for dr in range(start_offset, end_offset + 1):
+                for dc in range(start_offset, end_offset + 1):
+                    r_paint = r_center + dr
+                    c_paint = c_center + dc
+
+                    if self.is_valid_coordinate((r_paint, c_paint)):
+                        brushed_track_arr[r_paint, c_paint] = self.track[r_paint, c_paint]
+        
+        if len(path_coords) == 1:
+            r1, c1 = path_coords[0] # r1, c1 are already NumPy standard
+            _apply_brush_at_point(r1, c1) # Corrected: (r1, c1) not (c1, r1)
+            return Track(brushed_track_arr)
+
+        for i in range(len(path_coords) - 1):
+            # r1,c1 and r2,c2 are already NumPy standard coordinates
+            r1, c1 = path_coords[i]
+            r2, c2 = path_coords[i+1]
+
+            if i == 0:
+                _apply_brush_at_point(r1, c1)
+            _apply_brush_at_point(r2, c2)
+
+            dr_total = r2 - r1
+            dc_total = c2 - c1
+
+            if dr_total == 0 and dc_total == 0:
+                continue
+
+            num_steps = max(abs(dr_total), abs(dc_total))
+            if num_steps == 0: # Should be caught by previous check, but for safety
+                continue
+
+            step_r = dr_total / num_steps
+            step_c = dc_total / num_steps
+
+            current_r, current_c = float(r1), float(c1)
+            for _ in range(num_steps + 1): 
+                r_line = int(round(current_r))
+                c_line = int(round(current_c))
+                
+                _apply_brush_at_point(r_line, c_line) # r_line, c_line are NumPy standard
+                
+                current_r += step_r
+                current_c += step_c
+        
+        return Track(brushed_track_arr)
+    
+    def saveToFile(self, path: str):
+        """
+        Save the track to a file.
+        Each row of the track is written as a line in the file.
+        """
+        with open(path, 'w') as f:
+            for row in self.track:
+                f.write(''.join(row) + '\n')
+        
+        
 
 
 def loadTrack(path: str) -> np.ndarray:
@@ -720,28 +845,45 @@ def bresenham_line_cells(r0: int, c0: int, r1: int, c1: int) -> list[tuple[int, 
 if __name__ == "__main__":
     # --- Setup Example Files/Dirs (if they don't exist) ---
     # Create dummy files for testing if they are missing
-    os.makedirs("tracks", exist_ok=True)
-    os.makedirs("routes", exist_ok=True)
-    os.makedirs("src", exist_ok=True)
-    os.makedirs("visualizations", exist_ok=True)  # Host dir for final output
+    # os.makedirs("tracks", exist_ok=True)
+    # os.makedirs("routes", exist_ok=True)
+    # os.makedirs("src", exist_ok=True)
+    # os.makedirs("visualizations", exist_ok=True)  # Host dir for final output
 
-    example_track_file = "tracks/track_02.t"
-    example_route_file = "routes/exampleroute.csv"
-    example_perl_script = "src/visualise.pl"
-    example_output_pdf = "visualizations/final_output.pdf"  # Different name for clarity
+    # example_track_file = "tracks/track_02.t"
+    # example_route_file = "routes/exampleroute.csv"
+    # example_perl_script = "src/visualise.pl"
+    # example_output_pdf = "visualizations/final_output.pdf"  # Different name for clarity
 
-    # --- Actual script logic ---
-    print("\n--- Loading and Displaying Track (on Host) ---")
-    # Example using the dummy track file
-    track = loadTrack(example_track_file)
-    displayTrack(track)
+    # # --- Actual script logic ---
+    # print("\n--- Loading and Displaying Track (on Host) ---")
+    # # Example using the dummy track file
+    # track = loadTrack(example_track_file)
+    # displayTrack(track)
 
-    print("\n--- Running Visualization (inside Docker) ---")
+    # print("\n--- Running Visualization (inside Docker) ---")
+    # run_visualization_in_docker(
+    #     trackFilePath=example_track_file,
+    #     routeFilePath=example_route_file,
+    #     outputPdfPath=example_output_pdf,
+    #     docker_image="tran-optim"  # Make sure this image exists and has perl + pdflatex
+    # )
+
+    # print("\n--- Script Finished ---")
+
+    # create a track object from track_03.t
+    
+    track = Track(loadTrack("tracks/track_03.t"))
+    brushed_track = track.getBrushedTrack(brushSize=3, pathFile="routes/output.csv")
+    
+    # save the new track
+    brushed_track.saveToFile("tracks/track_03_brushed.t")
+    
+    #now visualize the path on the new track
+    
     run_visualization_in_docker(
-        trackFilePath=example_track_file,
-        routeFilePath=example_route_file,
-        outputPdfPath=example_output_pdf,
+        trackFilePath="tracks/track_03_brushed.t",
+        routeFilePath="routes/output.csv",
+        outputPdfPath="visualizations/track_03_brushed.pdf",
         docker_image="tran-optim"  # Make sure this image exists and has perl + pdflatex
     )
-
-    print("\n--- Script Finished ---")
