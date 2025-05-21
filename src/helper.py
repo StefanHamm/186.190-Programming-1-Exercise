@@ -874,7 +874,7 @@ if __name__ == "__main__":
     # create a track object from track_03.t
     
     track = Track(loadTrack("tracks/track_03.t"))
-    brushed_track = track.getBrushedTrack(brushSize=3, pathFile="routes/output.csv")
+    brushed_track = track.getBrushedTrack(brushSize=6, pathFile="routes/output.csv")
     
     # save the new track
     brushed_track.saveToFile("tracks/track_03_brushed.t")
