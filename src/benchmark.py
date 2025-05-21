@@ -2,10 +2,9 @@ import os
 
 import pyperf
 
-# Your original imports - matplotlib will now use MPLCONFIGDIR
-from src.helper import Track, loadTrack
-from src.bfs import bfs_racetrack # This will import src.construction, which imports matplotlib
-from src.construction import solve_chunked_astar, precompute_goal_heuristic, compute_narrowness_map
+from src.helper import Track, loadTrack, run_visualization_in_docker
+from src.bfs import bfs_racetrack
+from src.construction import solve_chunked_astar, precompute_goal_heuristic
 from src.state import CarState
 from memory_profiler import memory_usage
 from enum import Enum
@@ -19,25 +18,13 @@ class BenchmarkTarget(Enum):
     def __str__(self):
         return self.value
 
-# Global variables for benchmark functions - define them before the functions
-# if they are needed at function definition time (not strictly here, but good practice)
-# However, these are actually only needed when the __main__ block runs,
-# so they will be defined before benchmark_bfs and benchmark_construction are *called* by pyperf.
-# For clarity, let's keep them in __main__ as pyperf will re-execute the script for workers.
-# track = None
-# start_state = None
-# goals = None
-# distance_map = None
-# narrowness_map = None
-# depth = None
-
 def benchmark_bfs():
     # These globals will be defined in the __main__ block when pyperf runs the worker
     bfs_racetrack(track)
 
 def benchmark_construction():
     # These globals will be defined in the __main__ block when pyperf runs the worker
-    solve_chunked_astar(track, start_state, goals, distance_map, narrowness_map, depth, visualize=False, parameters=parameters)
+    solve_chunked_astar(track, start_state, goals, distance_map, depth, visualize=False, alpha=alpha)
 
 def profile_memory(target: BenchmarkTarget, track_name: str):
     # Memory profiling
@@ -46,13 +33,43 @@ def profile_memory(target: BenchmarkTarget, track_name: str):
     if target == BenchmarkTarget.BFS:
         mem_usage = memory_usage((bfs_racetrack, (track,)), interval=0.1)
     elif target == BenchmarkTarget.CONSTRUCTION:
-        mem_usage = memory_usage((solve_chunked_astar, (track, start_state, goals, distance_map, narrowness_map, depth, False, None,)), interval=0.1)
+        mem_usage = memory_usage((solve_chunked_astar, (track, start_state, goals, distance_map, depth, False, alpha,)), interval=0.1)
 
     with open(memory_usage_file_name, "w") as f:
         for entry in mem_usage:
             f.write(f"{entry}\n")
 
     return mem_usage
+
+def get_path_steps(target: BenchmarkTarget) -> int:
+    full_path = -1
+
+    if target == BenchmarkTarget.BFS:
+        full_path = bfs_racetrack(track)
+    elif target == BenchmarkTarget.CONSTRUCTION:
+        full_path, _, _ = solve_chunked_astar(track, start_state, goals, distance_map, depth, False, alpha)
+
+    path_file_name = f"benchmark/path/{target}_path_{track_name}"
+    csv_output_file_name = f"benchmark/path/{target}_path_{track_name}.csv"
+    docker_visualization_output_name = f"benchmark/path/{target}_path_{track_name}.pdf"
+
+    with open(path_file_name, "w") as f:
+        for entry in full_path:
+            f.write(f"{entry}\n")
+
+    with open(csv_output_file_name, 'w', newline="\n") as f:
+        for state in full_path:
+            # adjust for different origins
+            transformed_row = track.rows - 1 - state.row
+            f.write(f"{state.col},{transformed_row}\n")
+
+    run_visualization_in_docker(
+        trackFilePath=f"tracks/{track_name}",
+        routeFilePath=csv_output_file_name,
+        outputPdfPath=docker_visualization_output_name
+    )
+
+    return len(full_path) - 1 # -1 because the start state is no step
 
 def parse_args(parser: argparse.ArgumentParser):
     parser.add_argument(
@@ -109,11 +126,10 @@ if __name__ == "__main__":
         start_state = CarState(start[0], start[1], 0, 0)
         goals = track.getGoalCoordinates()
         distance_map = precompute_goal_heuristic(track)
-        narrowness_map = compute_narrowness_map(track)
         depth = args.depth
 
         # TODO: change if needed
-        parameters = [2, 0, 0]
+        alpha = 2.0
 
         bench = runner.bench_func("construction", benchmark_construction)
     else:
@@ -146,6 +162,9 @@ if __name__ == "__main__":
     data["metadata"]["memory"]["max"] = max(mem_usage)
     data["metadata"]["memory"]["usage"] = max(mem_usage) - min(mem_usage)
 
+    path_steps = get_path_steps(target)
+
+    data["metadata"]["path_steps"] = path_steps
 
     with open(perf_dump_file_name, "w") as f:
         json.dump(data, f, indent=2)
