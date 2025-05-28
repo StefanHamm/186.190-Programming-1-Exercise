@@ -119,7 +119,7 @@ class Track:
         return neighbours
     
         
-    def getBrushedTrack(self, pathFile: str, brushSize: int = 4) -> 'Track':
+    def getBrushedTrack(self, pathFile: str, brushSize: int = 4, speed_sensitive: bool = False, b: float = 1.0) -> 'Track':
         """
         Creates a new track by "painting" along a given path with a specified brush size.
         Assumes pathFile CSV format is: column_index, row_index_from_bottom.
@@ -127,6 +127,8 @@ class Track:
         Args:
             pathFile (str): Path to CSV: col_idx,row_idx_from_bottom (e.g., "X,Y_cartesian").
             brushSize (int): Side length of the square brush. Must be 1 or greater.
+            speed_sensitive (bool): If True, brush size is adjusted based on speed.
+            b (float): Speed sensitivity factor. Adjusts brush size based on speed if speed_sensitive is True.
 
         Returns:
             Track: A new Track object with the brushed track.
@@ -172,7 +174,7 @@ class Track:
 
         all_brushed_centers = set()
 
-        def _apply_brush_at_point(r_center: int, c_center: int):
+        def _apply_brush_at_point(r_center: int, c_center: int, speed: float, b: float):
             # r_center, c_center are now standard NumPy coordinates
             if (r_center, c_center) in all_brushed_centers:
                 return
@@ -182,8 +184,13 @@ class Track:
             
             all_brushed_centers.add((r_center, c_center))
 
-            start_offset = -((brushSize - 1) // 2)
-            end_offset = (brushSize // 2) 
+            effective_brush_size = brushSize
+
+            if speed_sensitive:
+                effective_brush_size = max(1, int(round(brushSize + b * speed)))
+
+            start_offset = -((effective_brush_size - 1) // 2)
+            end_offset = (effective_brush_size // 2)
             
             for dr in range(start_offset, end_offset + 1):
                 for dc in range(start_offset, end_offset + 1):
@@ -195,7 +202,7 @@ class Track:
         
         if len(path_coords) == 1:
             r1, c1 = path_coords[0] # r1, c1 are already NumPy standard
-            _apply_brush_at_point(r1, c1) # Corrected: (r1, c1) not (c1, r1)
+            _apply_brush_at_point(r1, c1, 0.0) # Corrected: (r1, c1) not (c1, r1)
             return Track(brushed_track_arr)
 
         for i in range(len(path_coords) - 1):
@@ -203,9 +210,11 @@ class Track:
             r1, c1 = path_coords[i]
             r2, c2 = path_coords[i+1]
 
+            speed = np.hypot(r2 - r1, c2 - c1)  # Calculate speed as distance between points
+
             if i == 0:
-                _apply_brush_at_point(r1, c1)
-            _apply_brush_at_point(r2, c2)
+                _apply_brush_at_point(r1, c1, speed, b)
+            _apply_brush_at_point(r2, c2, speed, b)
 
             dr_total = r2 - r1
             dc_total = c2 - c1
@@ -225,7 +234,7 @@ class Track:
                 r_line = int(round(current_r))
                 c_line = int(round(current_c))
                 
-                _apply_brush_at_point(r_line, c_line) # r_line, c_line are NumPy standard
+                _apply_brush_at_point(r_line, c_line, speed, b) # r_line, c_line are NumPy standard
                 
                 current_r += step_r
                 current_c += step_c
