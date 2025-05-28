@@ -2,7 +2,6 @@ from typing import List
 import numpy as np
 
 from src.bfs import bfs_racetrack
-from src.construction import solve_chunked_astar, precompute_goal_heuristic
 from src.state import CarState
 from src.helper import Track, loadTrack
 
@@ -14,10 +13,10 @@ def evaluate_path_cost(path: List[CarState]) -> float:
 
 
 def mutate_params(a: float, b: float, iteration: int, max_iterations: int, initial_scale: float = 0.1) -> (float, float):
-    scale = initial_scale * (0.5 ** (iteration / max_iterations))
+    scale = initial_scale * (0.9 ** (iteration / max_iterations))
 
-    a_mutated = max(1, int(round(a + np.random.normal(0, scale))))
-    b_mutated = b + np.random.normal(0, scale)
+    a_mutated = max(1, int(a + np.random.randint(-2, 3)))
+    b_mutated = b + np.random.normal(0, scale * 2)
 
     return a_mutated, b_mutated
 
