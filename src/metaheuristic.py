@@ -54,6 +54,12 @@ if __name__ == "__main__":
         default="track_03.t",
     )
 
+    parser.add_argument(
+        "--iterations", "-i",
+        type=int,
+        default=10,
+    )
+
     args = parser.parse_args()
 
     # Example usage
@@ -62,7 +68,7 @@ if __name__ == "__main__":
     initial_a = 2.0
     initial_b = 1.0
 
-    best_a, best_b, best_cost, best_path = optimize_brush_params(track, path_file, initial_a, initial_b)
+    best_a, best_b, best_cost, best_path = optimize_brush_params(track, path_file, initial_a, initial_b, args.iterations)
     print(f"Optimized parameters: a={best_a}, b={best_b}, cost={best_cost}")
 
     brushed_track = track.getBrushedTrack(path_file, best_a, True, best_b)
