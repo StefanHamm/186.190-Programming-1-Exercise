@@ -71,6 +71,16 @@ if __name__ == "__main__":
     best_a, best_b, best_cost, best_path = optimize_brush_params(track, path_file, initial_a, initial_b, args.iterations)
     print(f"Optimized parameters: a={best_a}, b={best_b}, cost={best_cost}")
 
+    best_params_file_name = f"benchmark/metaheuristic/params_{args.track}.csv"
+
+    if os.path.exists(best_params_file_name):
+        os.remove(best_params_file_name)
+
+    with open(best_params_file_name, 'w') as f:
+        f.write(f"a,{best_a}\n")
+        f.write(f"b,{best_b}\n")
+        f.write(f"cost,{best_cost}\n")
+
     brushed_track = track.getBrushedTrack(path_file, best_a, True, best_b)
 
     brushed_track_file_name = f"benchmark/metaheuristic/brushed_{args.track}.t"
