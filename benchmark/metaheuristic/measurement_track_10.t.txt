@@ -1,0 +1,2 @@
+Time taken: 0.9348 seconds
+Peak memory usage: 0.94 MiB
